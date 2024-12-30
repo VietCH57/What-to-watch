@@ -6,6 +6,7 @@ import os
 import math
 from sqlite3 import Error
 
+from helpers.poster_scraper import PosterScraper
 from recommendations import MovieRecommender
 
 app = Flask(__name__)
@@ -21,6 +22,9 @@ DB_PATH = r"D:\Programming\What To Watch\wtwData\movies.db"
 
 # Initialize the recommender
 recommender = MovieRecommender(DB_PATH)
+
+# Initialize PosterScraper
+poster_scraper = PosterScraper()
 
 def get_db_connection():
     try:
@@ -147,24 +151,253 @@ def register():
 
     return render_template("register.html")
 
-@app.route("/api/watch-history", methods=['DELETE'])
+@app.route("/search")
 @login_required
-def remove_from_history():
+def search():
+    return render_template("search.html")
+
+@app.route("/api/suggestions")
+@login_required
+def api_suggestions():
+    query = request.args.get('query', '').strip()
+    search_type = request.args.get('type', 'movie')
+    
+    if not query:
+        return jsonify([])
+
+    conn = get_db_connection()
+    try:
+        # Only handle movie/TV show search
+        results = conn.execute('''
+            SELECT title, year 
+            FROM media 
+            WHERE type = ? AND LOWER(title) LIKE LOWER(?) 
+            ORDER BY 
+                CASE 
+                    WHEN LOWER(title) = LOWER(?) THEN 1
+                    WHEN LOWER(title) LIKE LOWER(?) THEN 2
+                    ELSE 3
+                END,
+                title
+            LIMIT 10
+        ''', (search_type, f'{query}%', query, f'{query}%')).fetchall()
+        
+        suggestions = [
+            {
+                'label': f"{row['title']} ({row['year']})",
+                'value': row['title']
+            }
+            for row in results
+        ]
+        
+        return jsonify(suggestions)
+    finally:
+        conn.close()
+
+@app.route("/api/search_query")
+@login_required
+def api_search():
+    query = request.args.get('query', '').strip()
+    search_type = request.args.get('type', 'movie')
+    sort_by = request.args.get('sort', 'relevance')
+    
+    if not query:
+        return jsonify([])
+
+    conn = get_db_connection()
+    try:
+        # Your existing SQL query remains the same
+        query_sql = '''
+            SELECT m.*, 
+                r.average_rating,
+                r.num_votes,
+                GROUP_CONCAT(DISTINCT g.name) as genres
+            FROM media m
+            LEFT JOIN ratings r ON m.id = r.media_id
+            LEFT JOIN media_genres mg ON m.id = mg.media_id
+            LEFT JOIN genres g ON mg.genre_id = g.id
+            WHERE m.type = ? AND LOWER(m.title) LIKE LOWER(?)
+            GROUP BY m.id
+        '''
+        
+        params = [search_type, f'%{query}%']
+
+        if sort_by == 'rating':
+            query_sql += ' ORDER BY r.average_rating DESC NULLS LAST'
+        elif sort_by == 'year':
+            query_sql += ' ORDER BY m.year DESC'
+        elif sort_by == 'title':
+            query_sql += ' ORDER BY m.title'
+        else:  # relevance
+            query_sql += '''
+                ORDER BY 
+                    CASE 
+                        WHEN LOWER(m.title) = LOWER(?) THEN 1
+                        WHEN LOWER(m.title) LIKE LOWER(?) THEN 2
+                        ELSE 3
+                    END,
+                    r.average_rating DESC NULLS LAST
+            '''
+            params.extend([query, f'{query}%'])
+
+        query_sql += ' LIMIT 20'
+        
+        results = conn.execute(query_sql, params).fetchall()
+        
+        # Process results and fetch posters if needed
+        processed_results = []
+        update_queries = []
+        
+        for row in results:
+            result_dict = {
+                'id': row['id'],
+                'title': row['title'],
+                'year': row['year'],
+                'type': row['type'],
+                'plot': row['plot'],
+                'average_rating': float(row['average_rating']) if row['average_rating'] else None,
+                'num_votes': row['num_votes'],
+                'genres': row['genres'].split(',') if row['genres'] else []
+            }
+
+            # Check if we need to fetch a poster
+            if not row['poster_url']:
+                poster_path = poster_scraper.get_poster_url(
+                    title=row['title'],
+                    year=row['year']
+                )
+                
+                if poster_path:
+                    # Convert local path to URL
+                    relative_path = os.path.basename(poster_path)
+                    result_dict['poster_url'] = f"/images/{relative_path}"
+                    
+                    # Add to update queries
+                    update_queries.append((result_dict['poster_url'], row['id']))
+                else:
+                    result_dict['poster_url'] = '/static/images/no-poster.png'
+            else:
+                result_dict['poster_url'] = row['poster_url']
+            
+            processed_results.append(result_dict)
+
+        # Update the database with new poster URLs
+        if update_queries:
+            try:
+                update_sql = 'UPDATE media SET poster_url = ? WHERE id = ?'
+                conn.executemany(update_sql, update_queries)
+                conn.commit()
+            except Exception as e:
+                print(f"Error updating poster URLs: {str(e)}")
+                conn.rollback()
+
+        return jsonify(processed_results)
+
+    except Exception as e:
+        print(f"Search error: {str(e)}")
+        return jsonify({'error': 'An error occurred during search'}), 500
+    finally:
+        conn.close()
+
+# Add route to serve images
+@app.route('/images/<filename>')
+@login_required
+def serve_image(filename):
+    image_path = os.path.join("D:\\Programming\\What To Watch\\wtwData\\images", filename)
+    if os.path.exists(image_path):
+        return send_file(image_path, mimetype='image/jpeg')
+    return send_file('static/images/no-poster.png', mimetype='image/png')
+
+        
+@app.route("/api/favorites", methods=['POST', 'DELETE'])
+@login_required
+def manage_favorites():
     try:
         data = request.json
-        media_id = data['media_id']
-        
+        item_id = data.get('item_id')
+        item_type = data.get('item_type', 'media')  # 'media' or 'person'
+
+        if not item_id:
+            return jsonify({'error': 'Missing item_id'}), 400
+
         conn = get_db_connection()
-        conn.execute('''
-            DELETE FROM watch_history
-            WHERE user_id = ? AND media_id = ?
-        ''', [current_user.id, media_id])
-        conn.commit()
-        conn.close()
-        
-        return jsonify({'success': True})
+        try:
+            if request.method == 'POST':
+                conn.execute('''
+                    INSERT OR IGNORE INTO favorites 
+                    (user_id, item_id, item_type, date_added)
+                    VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                ''', [current_user.id, item_id, item_type])
+            else:  # DELETE
+                conn.execute('''
+                    DELETE FROM favorites
+                    WHERE user_id = ? AND item_id = ? AND item_type = ?
+                ''', [current_user.id, item_id, item_type])
+            
+            conn.commit()
+            return jsonify({'success': True})
+        finally:
+            conn.close()
     except Exception as e:
         return jsonify({'error': str(e)}), 400
+
+@app.route("/api/watchlist", methods=['POST', 'DELETE'])
+@login_required
+def manage_watchlist():
+    try:
+        data = request.json
+        media_id = data.get('media_id')
+        priority = data.get('priority', 1)
+
+        if not media_id:
+            return jsonify({'error': 'Missing media_id'}), 400
+
+        conn = get_db_connection()
+        try:
+            if request.method == 'POST':
+                conn.execute('''
+                    INSERT OR IGNORE INTO watchlist 
+                    (user_id, media_id, priority, date_added)
+                    VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                ''', [current_user.id, media_id, priority])
+            else:  # DELETE
+                conn.execute('''
+                    DELETE FROM watchlist
+                    WHERE user_id = ? AND media_id = ?
+                ''', [current_user.id, media_id])
+            
+            conn.commit()
+            return jsonify({'success': True})
+        finally:
+            conn.close()
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+@app.route("/api/watch-history", methods=['POST'])
+@login_required
+def add_to_history():
+    try:
+        data = request.json
+        media_id = data.get('media_id')
+
+        if not media_id:
+            return jsonify({'error': 'Missing media_id'}), 400
+
+        conn = get_db_connection()
+        try:
+            conn.execute('''
+                INSERT OR REPLACE INTO watch_history 
+                (user_id, media_id, watch_date)
+                VALUES (?, ?, CURRENT_TIMESTAMP)
+            ''', [current_user.id, media_id])
+            
+            conn.commit()
+            return jsonify({'success': True})
+        finally:
+            conn.close()
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+            
 
 @app.route("/preferences", methods=['GET', 'POST'])
 @login_required
@@ -252,103 +485,6 @@ def preferences():
             settings=settings
         )
         
-    finally:
-        conn.close()
-
-@app.route("/search")
-@login_required
-def search():
-    return render_template("search.html")
-
-@app.route("/api/suggestions")
-@login_required
-def api_suggestions():
-    query = request.args.get('query', '').strip()
-    search_type = request.args.get('type', 'movie')
-    
-    if not query:
-        return jsonify([])
-
-    conn = get_db_connection()
-    try:
-        # Using LIKE with query% to match from the start of titles
-        results = conn.execute('''
-            SELECT title, year 
-            FROM media 
-            WHERE type = ? AND LOWER(title) LIKE LOWER(?) 
-            ORDER BY 
-                CASE 
-                    WHEN LOWER(title) = LOWER(?) THEN 1  -- Exact match
-                    WHEN LOWER(title) LIKE LOWER(?) THEN 2  -- Starts with
-                    ELSE 3
-                END,
-                title
-            LIMIT 10
-        ''', (search_type, f'{query}%', query, f'{query}%')).fetchall()
-        
-        suggestions = [
-            {
-                'label': f"{row['title']} ({row['year']})",
-                'value': row['title']
-            }
-            for row in results
-        ]
-        return jsonify(suggestions)
-    finally:
-        conn.close()
-
-@app.route("/api/search_query")
-@login_required
-def api_search():
-    query = request.args.get('query', '').strip()
-    search_type = request.args.get('type', 'movie')
-    
-    if not query:
-        return jsonify([])
-
-    # Split query into words for whole word matching
-    search_words = query.lower().split()
-
-    conn = get_db_connection()
-    try:
-        # Create a WHERE clause that matches whole words
-        where_clauses = []
-        params = [search_type]
-        
-        for word in search_words:
-            where_clauses.append("""
-                (
-                    LOWER(title) LIKE ? OR
-                    LOWER(title) LIKE ? OR
-                    LOWER(title) LIKE ? OR
-                    LOWER(title) LIKE ?
-                )
-            """)
-            # Match word at start, end, or between spaces
-            params.extend([
-                f'{word}%',          # Starts with word
-                f'% {word}%',        # Has word between spaces
-                f'% {word}',         # Ends with word
-                f'{word}'            # Exact match
-            ])
-        
-        query_sql = f"""
-            SELECT m.*, COALESCE(r.average_rating, 0) as average_rating
-            FROM media m
-            LEFT JOIN ratings r ON m.id = r.media_id
-            WHERE m.type = ? AND {' AND '.join(where_clauses)}
-            ORDER BY 
-                CASE 
-                    WHEN LOWER(title) = LOWER(?) THEN 1
-                    ELSE 2
-                END,
-                title
-            LIMIT 20
-        """
-        params.append(query)  # Add original query for exact match sorting
-        
-        results = conn.execute(query_sql, params).fetchall()
-        return jsonify([dict(row) for row in results])
     finally:
         conn.close()
 

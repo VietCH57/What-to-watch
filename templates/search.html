@@ -2,103 +2,156 @@
 
 {% block title %}Search{% endblock %}
 
+{% block head %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/search.css') }}">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+{% endblock %}
+
 {% block content %}
 <div class="container mt-4">
     <div class="row justify-content-center">
         <div class="col-md-8">
-            <div class="input-group mb-3">
-                <select class="form-select" id="searchType" style="max-width: 150px;">
-                    <option value="movie">Movies</option>
-                    <option value="tv">TV Shows</option>
-                </select>
-                <input type="text" class="form-control" id="searchInput" placeholder="Type to search...">
-                <button class="btn btn-primary" type="button" id="searchButton">Search</button>
+            <div class="search-container">
+                <div class="input-group mb-3">
+                    <!-- Search Type Filter -->
+                    <select id="searchType" class="form-select">
+                        <option value="movie">Movie</option>
+                        <option value="tvSeries">TV Series</option>
+                    </select>
+
+                    <!-- Search Input -->
+                    <input type="text" class="form-control" id="searchInput" placeholder="Type to search...">
+                    
+                    <!-- Search Button -->
+                    <button class="btn btn-primary" type="button" id="searchButton">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+
+                <!-- Sort Options -->
+                <div class="sort-options mb-3" style="display: none;">
+                    <select class="form-select" id="sortBy">
+                        <option value="relevance">Sort by Relevance</option>
+                        <option value="title">Sort by Title</option>
+                        <option value="year">Sort by Year</option>
+                        <option value="rating">Sort by Rating</option>
+                    </select>
+                </div>
+
+                <!-- Person Type Filter (shown only when searching people) -->
+                <div id="personTypeFilter" class="mb-3" style="display: none;">
+                    <div class="btn-group" role="group">
+                        <input type="radio" class="btn-check" name="personType" id="allPeople" value="all" checked>
+                        <label class="btn btn-outline-primary" for="allPeople">All</label>
+
+                        <input type="radio" class="btn-check" name="personType" id="actors" value="actor">
+                        <label class="btn btn-outline-primary" for="actors">Actors</label>
+
+                        <input type="radio" class="btn-check" name="personType" id="directors" value="director">
+                        <label class="btn btn-outline-primary" for="directors">Directors</label>
+                    </div>
+                </div>
             </div>
+
+            <!-- Results Container -->
             <div id="searchResults" class="row mt-4"></div>
+
+            <!-- Loading Spinner -->
+            <div id="loadingSpinner" class="text-center" style="display: none;">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
-<script>
-$(document).ready(function() {
-    $("#searchInput").autocomplete({
-        source: function(request, response) {
-            $.ajax({
-                url: "/api/suggestions",
-                dataType: "json",
-                data: {
-                    query: request.term,
-                    type: $("#searchType").val()
-                },
-                success: function(data) {
-                    // Sort suggestions to prioritize exact matches
-                    data.sort((a, b) => {
-                        const aStartsWith = a.value.toLowerCase().startsWith(request.term.toLowerCase());
-                        const bStartsWith = b.value.toLowerCase().startsWith(request.term.toLowerCase());
-                        if (aStartsWith && !bStartsWith) return -1;
-                        if (!aStartsWith && bStartsWith) return 1;
-                        return a.value.localeCompare(b.value);
-                    });
-                    response(data);
-                }
-            });
-        },
-        minLength: 1,
-        select: function(event, ui) {
-            $("#searchInput").val(ui.item.value);
-            performSearch();
-            return false;
-        }
-    }).autocomplete("instance")._renderItem = function(ul, item) {
-        // Highlight the matching part at the start of the title
-        const searchTerm = this.term.toLowerCase();
-        const title = item.value;
-        const highlightedTitle = title.replace(new RegExp('^(' + searchTerm + ')', 'i'), '<strong>$1</strong>');
-        
-        return $("<li>")
-            .append(`<div>${highlightedTitle} (${item.label.split('(')[1]}`)
-            .appendTo(ul);
-    };
-    function performSearch() {
-        const query = $("#searchInput").val().trim();
-        if (query.length < 2) return;
-
-        $.ajax({
-            url: "/api/search_query",
-            data: {
-                query: query,
-                type: $("#searchType").val()
-            },
-            success: function(results) {
-                displayResults(results);
-            }
-        });
-    }
-
-    $("#searchButton").click(performSearch);
-
-    function displayResults(results) {
-        const container = $("#searchResults");
-        container.empty();
-
-        if (!results.length) {
-            container.html('<div class="col-12 text-center">No results found</div>');
-            return;
-        }
-
-        results.forEach(function(item) {
-            container.append(`
-                <div class="col-md-4 mb-3">
-                    <div class="card">
-                        <div class="card-body">
-                            <h5 class="card-title">${item.title}</h5>
-                            <p class="card-text">Year: ${item.year || 'N/A'}</p>
-                        </div>
+<!-- Result Templates -->
+<template id="mediaCardTemplate">
+    <div class="col-md-4">
+        <div class="card d-flex flex-column h-100">
+            <img src="" class="card-img-top" alt="Media Poster">
+            <div class="card-body d-flex flex-column">
+                <div class="content-section flex-grow-1">
+                    <h5 class="card-title"></h5>
+                    <div class="media-info">
+                        <p class="year mb-2"></p>
+                        <p class="genres mb-2"></p>
+                        <p class="plot-short"></p>
                     </div>
                 </div>
-            `);
-        });
-    }
-});
-</script>
+                <div class="card-bottom mt-auto">
+                    <div class="rating-section">
+                        <div class="rating">
+                            <i class="fas fa-star text-warning"></i>
+                            <span class="rating-value"></span>
+                        </div>
+                    </div>
+                    <div class="action-buttons">
+                        <button class="btn btn-sm btn-icon add-to-history" data-bs-toggle="tooltip" title="Add to History">
+                            <i class="fas fa-history"></i>
+                        </button>
+                        <button class="btn btn-sm btn-icon toggle-favorite" data-bs-toggle="tooltip" title="Add to Favorites">
+                            <i class="far fa-heart"></i>
+                        </button>
+                        <button class="btn btn-sm btn-icon add-to-watchlist" data-bs-toggle="tooltip" title="Add to Watchlist">
+                            <i class="fas fa-list"></i>
+                        </button>
+                        <button class="btn btn-sm btn-icon rate-media" data-bs-toggle="tooltip" title="Rate">
+                            <i class="fas fa-star"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
+
+<template id="personCardTemplate">
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <img src="" class="card-img-top" alt="Person Photo">
+            <div class="card-body">
+                <h5 class="card-title"></h5>
+                <p class="profession"></p>
+                <p class="birth-death"></p>
+                <div class="action-buttons mt-3">
+                    <button class="btn btn-sm btn-icon toggle-favorite" data-bs-toggle="tooltip" title="Add to Favorites">
+                        <i class="far fa-heart"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
+
+<!-- Rating Modal -->
+<div class="modal fade" id="ratingModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Rate</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="rating-stars text-center">
+                    {% for i in range(1, 11) %}
+                    <i class="far fa-star rating-star" data-rating="{{ i }}"></i>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveRating">Save Rating</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/search.js') }}"></script>
 {% endblock %}
