@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h2>Your Watch History</h2>
+    
+    <!-- Filters -->
+    <div class="filters mb-4">
+        <select class="form-select" id="typeFilter">
+            <option value="all">All Types</option>
+            <option value="movie">Movies</option>
+            <option value="tv">TV Shows</option>
+        </select>
+        
+        <select class="form-select" id="sortBy">
+            <option value="recent">Recently Watched</option>
+            <option value="rating">Highest Rated</option>
+            <option value="title">Title A-Z</option>
+        </select>
+    </div>
+
+    <!-- History List -->
+    <div class="history-list">
+        {% for item in watch_history %}
+        <div class="history-item" data-type="{{ item.media_type }}">
+            <img src="{{ item.poster_url }}" alt="{{ item.title }}">
+            <div class="item-details">
+                <h4>{{ item.title }}</h4>
+                <p>Watched on: {{ item.watch_date.strftime('%Y-%m-%d') }}</p>
+                <p>Your Rating: {{ item.rating }}/10</p>
+            </div>
+            <div class="item-actions">
+                <button class="btn btn-sm btn-primary edit-rating" 
+                        data-media-id="{{ item.media_id }}">
+                    Edit Rating
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

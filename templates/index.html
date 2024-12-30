@@ -24,6 +24,15 @@
         <div class="recommendations-section mt-5">
             <h2 class="text-center mb-4">Your Recommended Movies</h2>
             <!-- Add movie recommendations grid here -->
+            <div class="movie-grid">
+                {% for movie in recommended_movies[:6] %}  <!-- Show only top 6 -->
+                    <div class="movie-card-simple">
+                        <img src="{{ movie.poster_url }}" alt="{{ movie.title }}">
+                        <div class="movie-title">{{ movie.title }}</div>
+                    </div>
+                {% endfor %}
+                <a href="{{ url_for('recommendations') }}" class="btn btn-primary">See All Recommendations</a>
+            </div>
         </div>
     {% else %}
         <!-- Non-logged in user welcome panel -->

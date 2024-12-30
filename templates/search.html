@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="search-section">
+        <form action="{{ url_for('search') }}" method="GET" class="mb-4">
+            <div class="input-group">
+                <input type="text" name="query" class="form-control" 
+                       value="{{ request.args.get('query', '') }}"
+                       placeholder="Search for movies or TV shows...">
+                <button class="btn btn-primary" type="submit">
+                    <i class="fas fa-search"></i> Search
+                </button>
+            </div>
+        </form>
+    </div>
+
+    {% if results %}
+    <div class="results-grid">
+        {% for media in results %}
+        <div class="media-card">
+            <img src="{{ media.poster_url }}" alt="{{ media.title }}">
+            <div class="media-info">
+                <h4>{{ media.title }}</h4>
+                <p>{{ media.year }} • {{ media.type }}</p>
+                
+                <!-- Watch Status Form -->
+                <form action="{{ url_for('mark_watched') }}" method="POST">
+                    <input type="hidden" name="media_id" value="{{ media.id }}">
+                    <input type="hidden" name="media_type" value="{{ media.type }}">
+                    
+                    <div class="rating-input mb-2">
+                        <label>Your Rating:</label>
+                        <select name="rating" class="form-select">
+                            {% for i in range(1, 11) %}
+                            <option value="{{ i }}">{{ i }}/10</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-check"></i> Mark as Watched
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
