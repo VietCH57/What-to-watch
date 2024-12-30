@@ -147,6 +147,25 @@ def register():
 
     return render_template("register.html")
 
+@app.route("/api/watch-history", methods=['DELETE'])
+@login_required
+def remove_from_history():
+    try:
+        data = request.json
+        media_id = data['media_id']
+        
+        conn = get_db_connection()
+        conn.execute('''
+            DELETE FROM watch_history
+            WHERE user_id = ? AND media_id = ?
+        ''', [current_user.id, media_id])
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
 @app.route("/preferences", methods=['GET', 'POST'])
 @login_required
 def preferences():
@@ -322,86 +341,29 @@ def save_settings():
             
     except Exception as e:
         return jsonify({'error': str(e)}), 400
-
-@app.route("/api/search/movies")
-@login_required
-def search_movies():
-    query = request.args.get('q', '').strip()
-    if not query:
-        return jsonify([])
     
-    conn = get_db_connection()
-    try:
-        # Modified query to match your schema where type is either 'movie' or 'tv'
-        media = conn.execute('''
-            SELECT 
-                m.id, 
-                m.title, 
-                m.year, 
-                m.type,
-                m.poster_url,
-                COALESCE(r.average_rating, 0) as rating
-            FROM media m
-            LEFT JOIN ratings r ON m.id = r.media_id
-            WHERE LOWER(m.title) LIKE LOWER(?)
-            AND m.type IN ('movie', 'tv')
-            ORDER BY 
-                CASE WHEN r.average_rating IS NULL THEN 1 ELSE 0 END,
-                r.average_rating DESC,
-                m.year DESC
-            LIMIT 10
-        ''', [f'%{query}%']).fetchall()
-        
-        return jsonify([{
-            'id': m['id'],
-            'title': m['title'],
-            'year': m['year'],
-            'type': m['type'],
-            'rating': m['rating'],
-            'poster_url': m['poster_url']
-        } for m in media])
-    finally:
-        conn.close()
-
-@app.route("/api/search/people")
+@app.route("/api/update-rating", methods=['POST'])
 @login_required
-def search_people():
-    query = request.args.get('q', '').strip()
-    if not query:
-        return jsonify([])
-    
-    conn = get_db_connection()
+def update_rating():
     try:
-        # Modified query to remove popularity sorting
-        people = conn.execute('''
-            SELECT DISTINCT p.id, p.name, 
-                   GROUP_CONCAT(DISTINCT mp.role) as roles,
-                   COUNT(DISTINCT m.id) as movie_count
-            FROM people p
-            JOIN media_people mp ON p.id = mp.person_id
-            JOIN media m ON mp.media_id = m.id
-            WHERE LOWER(p.name) LIKE LOWER(?)
-            AND mp.role IN ('actor', 'director')
-            GROUP BY p.id
-            ORDER BY movie_count DESC  -- Sort by number of movies instead of popularity
-            LIMIT 10
-        ''', [f'%{query}%']).fetchall()
+        data = request.json
+        media_id = data['media_id']
+        rating = data['rating']
         
-        # Format the results
-        results = []
-        for person in people:
-            roles = list(set(person['roles'].split(','))) if person['roles'] else []
-            results.append({
-                'id': person['id'],
-                'name': person['name'],
-                'roles': roles,
-                'movie_count': person['movie_count']
-            })
-        
-        return jsonify(results)
-    finally:
+        conn = get_db_connection()
+        conn.execute('''
+            UPDATE watch_history
+            SET rating = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE user_id = ? AND media_id = ?
+        ''', [rating, current_user.id, media_id])
+        conn.commit()
         conn.close()
-
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+    
 @app.route("/recommendations")
 @login_required
 def recommendations():

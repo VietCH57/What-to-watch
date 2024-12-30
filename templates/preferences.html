@@ -119,75 +119,137 @@
             </div>
         </div>
 
-        <!-- Favorites -->
+        <!-- Your Favorites -->
         <div class="card mb-4">
             <div class="card-header">
-                <h4>Your Favorites</h4>
+                <h4>Your Favorites & History</h4>
             </div>
             <div class="card-body">
-                <!-- Movies Search -->
+                <!-- Recommendation Settings -->
                 <div class="mb-4">
-                    <label class="form-label">Favorite Movies & TV Shows</label>
+                    <h5>Recommendation Settings</h5>
+                    <div class="form-check mb-2">
+                        <input type="checkbox" class="form-check-input" id="includeWatchHistory" 
+                            name="include_watch_history" {% if settings.include_watch_history %}checked{% endif %}>
+                        <label class="form-check-label" for="includeWatchHistory">
+                            Include watch history in recommendations
+                        </label>
+                    </div>
+                    <div class="form-check mb-2">
+                        <input type="checkbox" class="form-check-input" id="includeRatings" 
+                            name="include_ratings" {% if settings.include_ratings %}checked{% endif %}>
+                        <label class="form-check-label" for="includeRatings">
+                            Consider my ratings in recommendations
+                        </label>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input type="checkbox" class="form-check-input" id="includeFavorites" 
+                            name="include_favorites" {% if settings.include_favorites %}checked{% endif %}>
+                        <label class="form-check-label" for="includeFavorites">
+                            Include favorites in recommendations
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Watch History -->
+                <div class="mb-4">
+                    <h5>Watch History</h5>
+                    <div class="watch-history-list mb-3">
+                        {% for item in watch_history %}
+                        <div class="watch-item d-flex align-items-center mb-2">
+                            <span class="me-2">{{ '📺' if item.type == 'tv' else '🎬' }}</span>
+                            <span class="me-auto">{{ item.title }}</span>
+                            <span class="rating me-2">★ {{ item.rating }}/10</span>
+                            <span class="watch-date text-muted me-2">{{ item.watch_date.strftime('%Y-%m-%d') }}</span>
+                            <button type="button" class="btn-close" onclick="removeFromHistory({{ item.media_id }})"></button>
+                        </div>
+                        {% endfor %}
+                    </div>
                     <div class="input-group">
-                        <input type="text" 
-                               class="form-control" 
-                               id="movieSearch" 
-                               placeholder="Search movies and TV shows...">
-                        <button type="button" 
-                                class="btn btn-outline-secondary" 
-                                onclick="searchMovies()">
-                            Search
+                        <input type="text" class="form-control" id="watchHistorySearch" 
+                            placeholder="Add to watch history...">
+                        <button class="btn btn-outline-secondary" type="button" onclick="showAddToHistoryModal()">
+                            Add
                         </button>
                     </div>
-                    <div id="movieResults" class="list-group mt-2"></div>
-                    <div id="selectedMovies" class="mt-3">
+                </div>
+
+                <!-- Favorites -->
+                <div class="mb-4">
+                    <h5>Favorite Movies & TV Shows</h5>
+                    <div id="selectedMovies" class="mb-3">
                         {% for media in favorite_movies %}
-                        <div class="badge bg-primary me-2">
-                            {{ '📺' if media.type == 'tv_show' else '🎬' }} {{ media.title }}
+                        <div class="badge bg-primary me-2 mb-2">
+                            {{ '📺' if media.type == 'tv' else '🎬' }} {{ media.title }}
                             <input type="hidden" name="favorite_movies[]" value="{{ media.id }}">
                             <button type="button" class="btn-close btn-close-white" 
                                     onclick="removeMovie(this.parentElement, {{ media.id }})"></button>
                         </div>
                         {% endfor %}
                     </div>
-                </div>
-
-                <!-- People Search -->
-                <div>
-                    <label class="form-label">Favorite Actors/Directors</label>
                     <div class="input-group">
-                        <input type="text" 
-                               class="form-control" 
-                               id="peopleSearch" 
-                               placeholder="Search people...">
-                        <button type="button" 
-                                class="btn btn-outline-secondary" 
-                                onclick="searchPeople()">
-                            Search
+                        <input type="text" class="form-control" id="movieSearch" 
+                            placeholder="Search movies and TV shows...">
+                        <button class="btn btn-outline-secondary" type="button" onclick="searchMovies()">
+                            Add
                         </button>
                     </div>
-                    <div id="peopleResults" class="list-group mt-2"></div>
-                    <div id="selectedPeople" class="mt-3">
+                    <div id="movieResults" class="list-group mt-2"></div>
+                </div>
+
+                <!-- Favorite People -->
+                <div>
+                    <h5>Favorite Actors & Directors</h5>
+                    <div id="selectedPeople" class="mb-3">
                         {% for person in favorite_people %}
-                        <div class="badge bg-success me-2">
-                            {{ person.item_name }} ({{ person.person_role }})
-                            <input type="hidden" name="favorite_people[]" value="{{ person.item_id }}">
+                        <div class="badge bg-success me-2 mb-2">
+                            {{ person.name }} ({{ person.roles|join(', ') }})
+                            <input type="hidden" name="favorite_people[]" value="{{ person.id }}">
                             <button type="button" class="btn-close btn-close-white" 
-                                    onclick="removePerson(this.parentElement, {{ person.item_id }})"></button>
+                                    onclick="removePerson(this.parentElement, {{ person.id }})"></button>
                         </div>
                         {% endfor %}
                     </div>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="peopleSearch" 
+                            placeholder="Search actors and directors...">
+                        <button class="btn btn-outline-secondary" type="button" onclick="searchPeople()">
+                            Add
+                        </button>
+                    </div>
+                    <div id="peopleResults" class="list-group mt-2"></div>
                 </div>
             </div>
         </div>
 
-        <div class="text-center">
-            <button type="button" id="getRecommendationsBtn" class="btn btn-primary btn-lg">
-                Get Recommendations
-            </button>
+        <!-- Add to History Modal -->
+        <div class="modal fade" id="addToHistoryModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Add to Watch History</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" id="historyMediaId">
+                        <div class="mb-3">
+                            <label class="form-label">Your Rating</label>
+                            <input type="range" class="form-range" id="historyRating" 
+                                min="1" max="10" step="1" value="7">
+                            <div class="text-center" id="historyRatingValue">7/10</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Watch Date</label>
+                            <input type="date" class="form-control" id="historyWatchDate">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" onclick="addToHistory()">Add</button>
+                    </div>
+                </div>
+            </div>
         </div>
-    </form>
-</div>
 {% endblock %}
 
 {% block extra_head %}
