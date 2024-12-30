@@ -20,7 +20,7 @@ login_manager.login_view = 'login'
 DB_PATH = r"D:\Programming\What To Watch\wtwData\movies.db"
 
 # Initialize the recommender
-recommender = MovieRecommender('D:\Programming\What To Watch\wtwData\movies.db')
+recommender = MovieRecommender(DB_PATH)
 
 def get_db_connection():
     try:
@@ -264,6 +264,64 @@ def preferences():
     finally:
         conn.close()
         
+@app.route("/api/save-genre-preference", methods=['POST'])
+@login_required
+def save_genre_preference():
+    try:
+        data = request.json
+        genre_id = data['genre_id']
+        weight = data['weight']
+        checked = data['checked']
+        
+        conn = get_db_connection()
+        try:
+            if checked:
+                conn.execute('''
+                    INSERT OR REPLACE INTO user_preferences 
+                    (user_id, genre_id, weight, updated_at)
+                    VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                ''', [current_user.id, genre_id, weight])
+            else:
+                conn.execute('''
+                    DELETE FROM user_preferences
+                    WHERE user_id = ? AND genre_id = ?
+                ''', [current_user.id, genre_id])
+            
+            conn.commit()
+            return jsonify({'success': True})
+        except Exception as e:
+            conn.rollback()
+            raise e
+        finally:
+            conn.close()
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+    
+@app.route("/api/save-settings", methods=['POST'])
+@login_required
+def save_settings():
+    try:
+        data = request.json
+        min_rating = float(data.get('min_rating', 6.0))
+        year_from = int(data.get('year_from', 1900))
+        year_to = int(data.get('year_to', 2024))
+        
+        conn = get_db_connection()
+        try:
+            conn.execute('''
+                INSERT OR REPLACE INTO user_settings 
+                (user_id, min_rating, year_from, year_to, updated_at)
+                VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ''', [current_user.id, min_rating, year_from, year_to])
+            
+            conn.commit()
+            return jsonify({'success': True})
+        finally:
+            conn.close()
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
 
 @app.route("/api/search/movies")
 @login_required
