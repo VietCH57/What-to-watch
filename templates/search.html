@@ -1,36 +1,104 @@
 {% extends "base.html" %}
 
-{% block title %}Search - What to Watch{% endblock %}
+{% block title %}Search{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
-    <h2>Search</h2>
-    <div class="input-group mb-3">
-        <select class="custom-select" id="searchType">
-            <option value="movie">Movies</option>
-            <option value="tv">TV Series</option>
-            <option value="actor">Actors</option>
-            <option value="actress">Actresses</option>
-            <option value="director">Directors</option>
-        </select>
-        <input type="text" class="form-control" id="searchInput" placeholder="Search...">
-        <div class="input-group-append">
-            <button class="btn btn-outline-secondary" type="button" id="searchButton">
-                <i class="fas fa-search"></i>
-            </button>
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="input-group mb-3">
+                <select class="form-select" id="searchType" style="max-width: 150px;">
+                    <option value="movie">Movies</option>
+                    <option value="tv">TV Shows</option>
+                </select>
+                <input type="text" class="form-control" id="searchInput" placeholder="Type to search...">
+                <button class="btn btn-primary" type="button" id="searchButton">Search</button>
+            </div>
+            <div id="searchResults" class="row mt-4"></div>
         </div>
     </div>
-    <div class="input-group mb-3">
-        <select class="custom-select" id="sortType">
-            <option value="relevance">Relevance</option>
-            <option value="rating">Rating</option>
-            <option value="year">Year</option>
-        </select>
-    </div>
-    <div id="searchResults" class="row"></div>
 </div>
-{% endblock %}
 
-{% block extra_scripts %}
-<script src="{{ url_for('static', filename='js/search.js') }}"></script>
+<script>
+$(document).ready(function() {
+    $("#searchInput").autocomplete({
+        source: function(request, response) {
+            $.ajax({
+                url: "/api/suggestions",
+                dataType: "json",
+                data: {
+                    query: request.term,
+                    type: $("#searchType").val()
+                },
+                success: function(data) {
+                    // Sort suggestions to prioritize exact matches
+                    data.sort((a, b) => {
+                        const aStartsWith = a.value.toLowerCase().startsWith(request.term.toLowerCase());
+                        const bStartsWith = b.value.toLowerCase().startsWith(request.term.toLowerCase());
+                        if (aStartsWith && !bStartsWith) return -1;
+                        if (!aStartsWith && bStartsWith) return 1;
+                        return a.value.localeCompare(b.value);
+                    });
+                    response(data);
+                }
+            });
+        },
+        minLength: 1,
+        select: function(event, ui) {
+            $("#searchInput").val(ui.item.value);
+            performSearch();
+            return false;
+        }
+    }).autocomplete("instance")._renderItem = function(ul, item) {
+        // Highlight the matching part at the start of the title
+        const searchTerm = this.term.toLowerCase();
+        const title = item.value;
+        const highlightedTitle = title.replace(new RegExp('^(' + searchTerm + ')', 'i'), '<strong>$1</strong>');
+        
+        return $("<li>")
+            .append(`<div>${highlightedTitle} (${item.label.split('(')[1]}`)
+            .appendTo(ul);
+    };
+    function performSearch() {
+        const query = $("#searchInput").val().trim();
+        if (query.length < 2) return;
+
+        $.ajax({
+            url: "/api/search_query",
+            data: {
+                query: query,
+                type: $("#searchType").val()
+            },
+            success: function(results) {
+                displayResults(results);
+            }
+        });
+    }
+
+    $("#searchButton").click(performSearch);
+
+    function displayResults(results) {
+        const container = $("#searchResults");
+        container.empty();
+
+        if (!results.length) {
+            container.html('<div class="col-12 text-center">No results found</div>');
+            return;
+        }
+
+        results.forEach(function(item) {
+            container.append(`
+                <div class="col-md-4 mb-3">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">${item.title}</h5>
+                            <p class="card-text">Year: ${item.year || 'N/A'}</p>
+                        </div>
+                    </div>
+                </div>
+            `);
+        });
+    }
+});
+</script>
 {% endblock %}

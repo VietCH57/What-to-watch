@@ -260,79 +260,98 @@ def preferences():
 def search():
     return render_template("search.html")
 
-@app.route("/api/search_query", methods=['GET'])
-@login_required
-def api_search():
-    query = request.args.get('query', '')
-    search_type = request.args.get('type', 'movie')
-    sort_type = request.args.get('sort', 'relevance')
-    
-    if not query:
-        return jsonify([])
-
-    conn = get_db_connection()
-    results = []
-    
-    try:
-        if search_type in ['movie', 'tv']:
-            results = conn.execute('''
-                SELECT m.id, m.title, m.year, m.poster_url, r.average_rating
-                FROM media m
-                LEFT JOIN ratings r ON m.id = r.media_id
-                WHERE m.title LIKE ? AND m.type = ?
-                ORDER BY CASE WHEN ? = 'rating' THEN r.average_rating END DESC,
-                         CASE WHEN ? = 'year' THEN m.year END DESC,
-                         m.title
-                LIMIT 20
-            ''', (f'%{query}%', search_type, sort_type, sort_type)).fetchall()
-        else:
-            role = 'actor' if search_type == 'actor' else 'actress' if search_type == 'actress' else 'director'
-            results = conn.execute('''
-                SELECT p.id, p.name, p.primary_profession, NULL as photo_url
-                FROM people p
-                JOIN media_people mp ON p.id = mp.person_id
-                WHERE p.name LIKE ? AND mp.role = ?
-                LIMIT 20
-            ''', (f'%{query}%', role)).fetchall()
-    finally:
-        conn.close()
-
-    return jsonify([dict(row) for row in results])
-
-
-@app.route("/api/suggestions", methods=['GET'])
+@app.route("/api/suggestions")
 @login_required
 def api_suggestions():
-    query = request.args.get('query', '')
+    query = request.args.get('query', '').strip()
     search_type = request.args.get('type', 'movie')
     
     if not query:
         return jsonify([])
 
     conn = get_db_connection()
-    suggestions = []
-
     try:
-        if search_type in ['movie', 'tv']:
-            suggestions = conn.execute('''
-                SELECT title
-                FROM media
-                WHERE title LIKE ? AND type = ?
-                LIMIT 10
-            ''', (f'%{query}%', search_type)).fetchall()
-        else:
-            role = 'actor' if search_type == 'actor' else 'actress' if search_type == 'actress' else 'director'
-            suggestions = conn.execute('''
-                SELECT name
-                FROM people p
-                JOIN media_people mp ON p.id = mp.person_id
-                WHERE p.name LIKE ? AND mp.role = ?
-                LIMIT 10
-            ''', (f'%{query}%', role)).fetchall()
+        # Using LIKE with query% to match from the start of titles
+        results = conn.execute('''
+            SELECT title, year 
+            FROM media 
+            WHERE type = ? AND LOWER(title) LIKE LOWER(?) 
+            ORDER BY 
+                CASE 
+                    WHEN LOWER(title) = LOWER(?) THEN 1  -- Exact match
+                    WHEN LOWER(title) LIKE LOWER(?) THEN 2  -- Starts with
+                    ELSE 3
+                END,
+                title
+            LIMIT 10
+        ''', (search_type, f'{query}%', query, f'{query}%')).fetchall()
+        
+        suggestions = [
+            {
+                'label': f"{row['title']} ({row['year']})",
+                'value': row['title']
+            }
+            for row in results
+        ]
+        return jsonify(suggestions)
     finally:
         conn.close()
 
-    return jsonify([row[0] for row in suggestions])
+@app.route("/api/search_query")
+@login_required
+def api_search():
+    query = request.args.get('query', '').strip()
+    search_type = request.args.get('type', 'movie')
+    
+    if not query:
+        return jsonify([])
+
+    # Split query into words for whole word matching
+    search_words = query.lower().split()
+
+    conn = get_db_connection()
+    try:
+        # Create a WHERE clause that matches whole words
+        where_clauses = []
+        params = [search_type]
+        
+        for word in search_words:
+            where_clauses.append("""
+                (
+                    LOWER(title) LIKE ? OR
+                    LOWER(title) LIKE ? OR
+                    LOWER(title) LIKE ? OR
+                    LOWER(title) LIKE ?
+                )
+            """)
+            # Match word at start, end, or between spaces
+            params.extend([
+                f'{word}%',          # Starts with word
+                f'% {word}%',        # Has word between spaces
+                f'% {word}',         # Ends with word
+                f'{word}'            # Exact match
+            ])
+        
+        query_sql = f"""
+            SELECT m.*, COALESCE(r.average_rating, 0) as average_rating
+            FROM media m
+            LEFT JOIN ratings r ON m.id = r.media_id
+            WHERE m.type = ? AND {' AND '.join(where_clauses)}
+            ORDER BY 
+                CASE 
+                    WHEN LOWER(title) = LOWER(?) THEN 1
+                    ELSE 2
+                END,
+                title
+            LIMIT 20
+        """
+        params.append(query)  # Add original query for exact match sorting
+        
+        results = conn.execute(query_sql, params).fetchall()
+        return jsonify([dict(row) for row in results])
+    finally:
+        conn.close()
+
 
 @app.route("/api/save-genre-preference", methods=['POST'])
 @login_required

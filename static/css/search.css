@@ -1,51 +1,55 @@
-/* search.css */
+/* Add these styles to search.css */
+.ui-autocomplete {
+    max-height: 300px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    z-index: 1000;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
 
-/* Search bar styling */
-.input-group {
-    margin-bottom: 10px;
+.ui-menu-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+}
+
+.ui-menu-item:last-child {
+    border-bottom: none;
+}
+
+.ui-menu-item:hover {
+    background-color: #f8f9fa;
+}
+
+.ui-state-active {
+    background-color: #e9ecef !important;
+    border: none !important;
+    margin: 0 !important;
+}
+
+.ui-helper-hidden-accessible {
+    display: none;
+}
+
+/* Improve search input styling */
+.search-container {
+    position: relative;
     max-width: 600px;
-    margin: auto;
+    margin: 0 auto;
 }
 
-/* Search results styling */
-.card {
-    width: 100%;
-    margin-bottom: 20px;
-    overflow: hidden;
+#searchInput {
+    padding-right: 40px;
+    border-radius: 20px;
+    border: 1px solid #ddd;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    transition: all 0.3s ease;
 }
 
-.card-img {
-    height: 100%;
-    object-fit: cover;
-}
-
-.card-body {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-}
-
-.btn-group .btn {
-    margin-right: 10px;
-}
-
-/* Tooltip styling */
-.btn[title]:hover::after {
-    content: attr(title);
-    position: absolute;
-    background: #333;
-    color: #fff;
-    padding: 5px 10px;
-    border-radius: 5px;
-    bottom: 125%; /* Position above */
-    left: 50%;
-    transform: translateX(-50%);
-    white-space: nowrap;
-    z-index: 10;
-    opacity: 0;
-    transition: opacity 0.3s;
-}
-
-.btn[title]:hover::after {
-    opacity: 1;
+#searchInput:focus {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
 }
