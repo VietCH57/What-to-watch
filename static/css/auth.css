@@ -1,0 +1,182 @@
+/* Auth Pages Styles */
+.container.mt-5 .btn-primary {
+    min-width: 200px;
+    padding: 0.75rem 2rem;
+    font-size: 1rem;
+    text-align: center;
+    margin: 0 auto;
+    background: transparent; /* Make background transparent */
+    border: 2px solid var(--accent-color); /* Match navbar button border */
+    color: var(--accent-color); /* Match navbar button text color */
+    transition: all 0.3s ease;
+}
+
+.container.mt-5 .btn-primary:hover {
+    background-color: var(--accent-color);
+    color: white;
+    transform: translateY(-2px);
+}
+
+/* Keep the rest of your styles the same */
+.password-container {
+    position: relative;
+}
+
+.toggle-password {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    padding: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    opacity: 0.7;
+}
+
+.toggle-password:hover {
+    opacity: 1;
+}
+
+.toggle-password:focus {
+    outline: none;
+}
+
+/* Dark mode adjustments */
+[data-theme="dark"] .btn-primary {
+    border-color: var(--accent-color);
+    color: var(--accent-color);
+    background: transparent;
+}
+
+[data-theme="dark"] .btn-primary:hover {
+    background-color: var(--accent-color);
+    color: white;
+}
+
+/* Form input styling */
+.form-control {
+    height: 45px;
+    background-color: var(--card-background);
+    border: 1px solid rgba(128, 128, 128, 0.2);
+    color: var(--text-color);
+}
+
+.form-control:focus {
+    background-color: var(--card-background);
+    border-color: var(--accent-color);
+    color: var(--text-color);
+    box-shadow: 0 0 0 0.2rem rgba(var(--accent-color-rgb), 0.25);
+}
+
+/* Autofill styles to prevent white background */
+.form-control:-webkit-autofill,
+.form-control:-webkit-autofill:hover,
+.form-control:-webkit-autofill:focus,
+.form-control:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px var(--card-background) inset !important;
+    -webkit-text-fill-color: var(--text-color) !important;
+    transition: background-color 5000s ease-in-out 0s;
+}
+
+/* Dark mode specific input styles */
+[data-theme="dark"] .form-control {
+    background-color: var(--card-background);
+    color: var(--text-color);
+}
+
+[data-theme="dark"] .form-control:focus {
+    background-color: var(--card-background);
+    color: var(--text-color);
+}
+
+/* Password toggle button styling */
+.password-container {
+    position: relative;
+}
+
+.toggle-password {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    padding: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    opacity: 0.7;
+}
+
+.toggle-password:hover {
+    opacity: 1;
+}
+
+.toggle-password:focus {
+    outline: none;
+}
+
+/* Dark mode specific styles */
+[data-theme="dark"] .toggle-password {
+    color: var(--text-color);
+}
+
+[data-theme="dark"] .toggle-password:hover {
+    color: var(--accent-color);
+}
+
+/* SVG icon styling */
+.eye-icon {
+    width: 20px;
+    height: 20px;
+    transition: all 0.3s ease;
+    position: absolute;
+}
+
+.eye-path {
+    fill: var(--text-color);
+    transition: fill 0.3s ease;
+}
+
+.eye-lid {
+    fill: var(--card-background);
+    transition: fill 0.3s ease;
+}
+
+/* Show/hide states for icons */
+.eye-open {
+    opacity: 0;
+}
+
+.eye-closed {
+    opacity: 1;
+}
+
+/* When password is visible */
+.toggle-password[data-visible="true"] .eye-open {
+    opacity: 1;
+}
+
+.toggle-password[data-visible="true"] .eye-closed {
+    opacity: 0;
+}
+
+/* Dark mode adjustments */
+[data-theme="dark"] .eye-path {
+    fill: var(--text-color);
+}
+
+[data-theme="dark"] .eye-lid {
+    fill: var(--card-background);
+}
+
+[data-theme="dark"] .toggle-password:hover .eye-path {
+    fill: var(--accent-color);
+}

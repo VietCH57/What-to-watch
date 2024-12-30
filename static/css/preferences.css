@@ -1,0 +1,90 @@
+/* Preferences Page Specific Styles */
+.preferences-container {
+    padding-top: 2rem;
+    margin-top: 1rem;
+}
+
+.preferences-container .card {
+    margin-top: 1rem;
+}
+
+/* Genre Grid Styles */
+.genre-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 1rem;
+    padding: 1rem 0;
+}
+
+.genre-item {
+    width: 100%;
+}
+
+.genre-item label {
+    width: 100%;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: 0.5rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Preference Sections */
+.preference-section {
+    background-color: var(--filter-bar-bg);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.preference-section h4 {
+    margin-bottom: 1rem;
+    color: var(--text-color);
+}
+
+/* Form Controls */
+.form-select, 
+.form-range {
+    background-color: var(--card-background);
+    color: var(--text-color);
+    border-color: rgba(128, 128, 128, 0.2);
+}
+
+/* Rating Slider */
+.rating-slider {
+    padding: 1rem 0;
+}
+
+.rating-value {
+    text-align: center;
+    margin-top: 0.5rem;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .preferences-container {
+        padding-top: 1rem;
+    }
+
+    .genre-grid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    }
+
+    .preference-section {
+        padding: 1rem;
+    }
+}
+
+/* Dark Mode Adjustments */
+[data-theme="dark"] .preference-section {
+    background-color: var(--filter-bar-bg);
+}
+
+[data-theme="dark"] .form-select {
+    background-color: var(--card-background);
+    color: var(--text-color);
+}

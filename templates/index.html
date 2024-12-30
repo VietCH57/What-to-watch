@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Home - What to Watch{% endblock %}
+
+{% block content %}
+<div class="container">
+    {% if current_user.is_authenticated %}
+        <!-- Logged in user welcome panel -->
+        <div class="welcome-panel">
+            <div class="card shadow-sm">
+                <div class="card-body text-center">
+                    <h1 class="display-5 mb-4">Welcome back, {{ current_user.username }}! 👋</h1>
+                    <p class="lead mb-4">Ready to discover your next favorite movie?</p>
+                    <div class="d-grid gap-3 d-sm-flex justify-content-sm-center">
+                        <a href="{{ url_for('preferences') }}" class="btn btn-primary btn-lg px-4 gap-3">
+                            <i class="fas fa-film me-2"></i>Get Movie Recommendations
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recommendations section -->
+        <div class="recommendations-section mt-5">
+            <h2 class="text-center mb-4">Your Recommended Movies</h2>
+            <!-- Add movie recommendations grid here -->
+        </div>
+    {% else %}
+        <!-- Non-logged in user welcome panel -->
+        <div class="welcome-panel">
+            <div class="card shadow-sm">
+                <div class="card-body text-center">
+                    <h1 class="display-4 mb-4">Welcome to What to Watch!</h1>
+                    <p class="lead mb-4">Your personal movie discovery companion. Join us to get tailored recommendations based on your preferences.</p>
+                    <div class="features-grid mb-4">
+                        <div class="feature-item">
+                            <i class="fas fa-robot fa-2x mb-3"></i>
+                            <h5>Smart Recommendations</h5>
+                            <p>Personalized movie suggestions based on your taste</p>
+                        </div>
+                        <div class="feature-item">
+                            <i class="fas fa-filter fa-2x mb-3"></i>
+                            <h5>Custom Filters</h5>
+                            <p>Filter by genre, rating, year, and more</p>
+                        </div>
+                        <div class="feature-item">
+                            <i class="fas fa-history fa-2x mb-3"></i>
+                            <h5>Watch History</h5>
+                            <p>Keep track of movies you've watched</p>
+                        </div>
+                    </div>
+                    <div class="d-grid gap-3 d-sm-flex justify-content-sm-center">
+                        <a href="{{ url_for('login') }}" class="btn btn-primary btn-lg">
+                            <span><i class="fas fa-sign-in-alt me-2"></i>Sign In</span>
+                        </a>
+                        <a href="{{ url_for('register') }}" class="btn btn-outline-primary btn-lg">
+                            <span><i class="fas fa-user-plus me-2"></i>Sign Up</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,13 @@
+/* 7. Footer */
+footer {
+    width: 100%;
+    background-color: var(--filter-bar-bg);
+    padding: 1rem 0;
+    text-align: center;
+    color: var(--text-color);
+    margin-top: 0;
+}
+
+footer p {
+    margin: 0;
+}

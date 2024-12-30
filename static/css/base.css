@@ -1,0 +1,95 @@
+/* 1. Imports and Variables */
+@import url("https://fonts.googleapis.com/css?family=Poppins:wght@300;400;500;600;700;800;900&display=swap");
+
+:root {
+    --primary-color: #333;
+    --accent-color: #007bff;
+    --text-color: #333;
+    --background-color: #f4f4f4;
+    --card-background: rgba(255, 255, 255, 0.95);
+    --shadow: 0 2px 5px rgba(0,0,0,0.1);
+    --header-bg: rgba(255, 255, 255, 0.95);
+    --filter-bar-bg: #f8f9fa;
+    --accent-color-rgb: 13, 110, 253;
+}
+
+/* 2. Reset and Base Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: "Poppins", sans-serif;
+    transition: background-color 0.3s ease, color 0.3s ease; 
+}
+
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--background-color);
+    line-height: 1.6;
+    color: var(--text-color);
+    margin: 0;
+    padding: 0;
+}
+
+main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding-top: 80px; 
+    background-color: var(--background-color);
+    width: 100%;
+}
+
+/* 4. Container and Layout */
+.container {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1rem;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background-color: transparent;
+}
+
+.container.loaded {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Base theme colors */
+:root {
+    --text-color: #000000;
+    --background-color: #ffffff;
+    --card-background: #ffffff;
+}
+
+[data-theme="dark"] {
+    --text-color: #ffffff;
+    --background-color: #1a1a1a;
+    --card-background: #242424;
+}
+
+/* Critical elements that shouldn't disappear */
+.footer,
+.auth-icon,
+.login-title,
+.register-prompt,
+.movie-preferences-form label,
+.language-selection,
+.movie-card-title,
+.movie-overview,
+.form-label,
+.nav-link,
+.movie-card * {
+    position: relative; /* Ensure stable rendering */
+    color: var(--text-color);
+    transition: none !important; /* Remove transitions */
+}
+
+/* Remove all color transitions */
+* {
+    transition: none !important;
+}

@@ -1,0 +1,22 @@
+/* 11. Modal Styles */
+.modal-content {
+    background-color: var(--card-background);
+    color: var(--text-color);
+}
+
+.modal-header {
+    border-bottom-color: rgba(128, 128, 128, 0.2);
+}
+
+.modal-footer {
+    border-top-color: rgba(128, 128, 128, 0.2);
+}
+
+.modal-body img {
+    max-height: 400px;
+    width: auto;
+}
+
+.movie-details p {
+    margin-bottom: 0.5rem;
+}

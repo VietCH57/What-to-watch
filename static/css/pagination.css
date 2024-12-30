@@ -1,0 +1,22 @@
+/* 12. Pagination */
+.pagination {
+    margin-bottom: 2rem;
+}
+
+.pagination .page-item .page-link {
+    background-color: var(--card-background);
+    border-color: rgba(128, 128, 128, 0.2);
+    color: var(--text-color);
+}
+
+.pagination .page-item.active .page-link {
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+    color: white;
+}
+
+.pagination .page-item.disabled .page-link {
+    background-color: var(--filter-bar-bg);
+    border-color: rgba(128, 128, 128, 0.1);
+    color: rgba(255, 255, 255, 0.5);
+}

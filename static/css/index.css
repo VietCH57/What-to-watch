@@ -1,0 +1,243 @@
+/* Index Page Specific Styles */
+
+/* Welcome Panel */
+.welcome-panel {
+    margin: 2rem auto;
+    max-width: 1200px;
+    width: 100%;
+}
+
+.welcome-panel .card {
+    border: none;
+    border-radius: 15px;
+    background-color: var(--card-background);
+    box-shadow: var(--shadow);
+    transition: all 0.3s ease;
+}
+
+.welcome-panel .card:hover {
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+.welcome-panel .card-body {
+    padding: 3rem;
+}
+
+.welcome-panel .display-4,
+.welcome-panel .display-5 {
+    color: var(--text-color);
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+}
+
+.welcome-panel .lead {
+    color: var(--text-color);
+    font-size: 1.25rem;
+    margin-bottom: 2rem;
+    opacity: 0.9;
+}
+
+/* Features Grid */
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 2rem;
+    margin: 2.5rem 0;
+}
+
+.feature-item {
+    padding: 1.5rem;
+    text-align: center;
+    border-radius: 10px;
+    background-color: rgba(var(--accent-color-rgb), 0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border: 1px solid rgba(var(--accent-color-rgb), 0.1);
+}
+
+.feature-item:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(var(--accent-color-rgb), 0.2);
+}
+
+.feature-item i {
+    color: var(--accent-color);
+    margin-bottom: 1rem;
+    transition: transform 0.3s ease;
+}
+
+.feature-item:hover i {
+    transform: scale(1.1);
+}
+
+.feature-item h5 {
+    margin: 1rem 0;
+    color: var(--text-color);
+    font-weight: 600;
+}
+
+.feature-item p {
+    color: var(--text-color);
+    font-size: 0.95rem;
+    margin-bottom: 0;
+    opacity: 0.9;
+    line-height: 1.5;
+}
+
+/* Action Buttons */
+.btn-action-wrapper {
+    display: flex;
+    gap: 8px; /* Reduced gap between buttons */
+    justify-content: center;
+    margin-top: 2rem;
+}
+
+.btn-lg {
+    padding: 0.8rem 1.8rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    border-radius: 8px;
+    min-width: 140px; /* Ensure consistent button width */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 4px; /* Add small margin between buttons */
+}
+
+.btn-lg span {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+}
+
+.btn-lg i {
+    margin-right: 0.5rem;
+    font-size: 0.9em; /* Slightly smaller icons */
+}
+
+.btn-lg:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(var(--accent-color-rgb), 0.2);
+}
+
+/* Recommendations Section */
+.recommendations-section {
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 1px solid rgba(var(--accent-color-rgb), 0.1);
+}
+
+.recommendations-section h2 {
+    color: var(--text-color);
+    font-weight: 600;
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+/* Dark Mode Specific Styles */
+[data-theme="dark"] .feature-item {
+    background-color: rgba(var(--accent-color-rgb), 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .welcome-panel .card {
+    background-color: var(--card-background);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .btn-outline-primary {
+    border-color: var(--accent-color);
+    color: var(--accent-color);
+}
+
+[data-theme="dark"] .btn-outline-primary:hover {
+    background-color: var(--accent-color);
+    color: #fff;
+}
+
+/* Responsive Design */
+@media (max-width: 576px) {
+    .d-sm-flex {
+        display: flex !important;
+        gap: 8px;
+    }
+
+    .btn-lg {
+        flex: 1;
+        padding: 0.8rem 1rem;
+        min-width: 120px;
+    }
+}
+
+@media (max-width: 992px) {
+    .welcome-panel .card-body {
+        padding: 2rem;
+    }
+
+    .features-grid {
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .welcome-panel {
+        margin: 1rem auto;
+    }
+
+    .welcome-panel .card-body {
+        padding: 1.5rem;
+    }
+
+    .welcome-panel .display-4,
+    .welcome-panel .display-5 {
+        font-size: 2rem;
+    }
+
+    .welcome-panel .lead {
+        font-size: 1.1rem;
+    }
+
+    .features-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .btn-action-wrapper {
+        flex-direction: column;
+    }
+
+    .btn-lg {
+        width: 100%;
+        margin: 0.5rem 0;
+    }
+}
+
+/* Animation */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.welcome-panel {
+    animation: fadeInUp 0.6s ease-out;
+}
+
+.feature-item {
+    animation: fadeInUp 0.6s ease-out;
+    animation-fill-mode: both;
+}
+
+.feature-item:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.feature-item:nth-child(3) {
+    animation-delay: 0.4s;
+}
