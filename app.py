@@ -188,20 +188,6 @@ def preferences():
                     VALUES (?, ?, ?)
                 ''', [current_user.id, genre_id, weight])
             
-            # Save favorite movies
-            for movie_id in request.form.getlist('favorite_movies[]'):
-                conn.execute('''
-                    INSERT INTO favorites (user_id, item_id, item_type)
-                    VALUES (?, ?, 'movie')
-                ''', [current_user.id, movie_id])
-            
-            # Save favorite people (actors/directors)
-            for person_id in request.form.getlist('favorite_people[]'):
-                conn.execute('''
-                    INSERT INTO favorites (user_id, item_id, item_type)
-                    VALUES (?, ?, 'person')
-                ''', [current_user.id, person_id])
-            
             # Save general preferences
             min_rating = request.form.get('min_rating', 6.0)
             year_from = request.form.get('year_from', 1900)
@@ -209,9 +195,17 @@ def preferences():
             
             conn.execute('''
                 INSERT OR REPLACE INTO user_settings 
-                (user_id, min_rating, year_from, year_to)
-                VALUES (?, ?, ?, ?)
-            ''', [current_user.id, min_rating, year_from, year_to])
+                (user_id, min_rating, year_from, year_to, include_watch_history, include_ratings, include_favorites)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', [
+                current_user.id, 
+                min_rating, 
+                year_from, 
+                year_to, 
+                request.form.get('include_watch_history') == 'on', 
+                request.form.get('include_ratings') == 'on', 
+                request.form.get('include_favorites') == 'on'
+            ])
             
             conn.commit()
             flash('Preferences saved successfully!', 'success')
@@ -236,25 +230,6 @@ def preferences():
             WHERE user_id = ?
         ''', [current_user.id]).fetchall()
         
-        # Get user's favorites
-        # Get user's favorites
-        favorites = conn.execute('''
-            SELECT f.*, 
-                   CASE 
-                       WHEN f.item_type = 'movie' THEN m.title
-                       WHEN f.item_type = 'person' THEN p.name
-                   END as item_name,
-                   CASE 
-                       WHEN f.item_type = 'person' THEN mp.role
-                   END as person_role
-            FROM favorites f
-            LEFT JOIN media m ON f.item_id = m.id AND f.item_type = 'movie'
-            LEFT JOIN people p ON f.item_id = p.id AND f.item_type = 'person'
-            LEFT JOIN media_people mp ON p.id = mp.person_id
-            WHERE f.user_id = ?
-            GROUP BY f.id
-        ''', [current_user.id]).fetchall()
-        
         # Get user settings
         settings = conn.execute('''
             SELECT * FROM user_settings WHERE user_id = ?
@@ -264,25 +239,101 @@ def preferences():
             settings = {
                 'min_rating': 6.0,
                 'year_from': 1900,
-                'year_to': 2024
+                'year_to': 2024,
+                'include_watch_history': True,
+                'include_ratings': True,
+                'include_favorites': True
             }
-        
-        # Format favorites by type
-        favorite_movies = [f for f in favorites if f['item_type'] == 'movie']
-        favorite_people = [f for f in favorites if f['item_type'] == 'person']
         
         return render_template(
             'preferences.html',
             genres=genres,
             user_preferences=dict((p['genre_id'], p['weight']) for p in user_prefs),
-            favorite_movies=favorite_movies,
-            favorite_people=favorite_people,
             settings=settings
         )
         
     finally:
         conn.close()
-        
+
+@app.route("/search")
+@login_required
+def search():
+    return render_template("search.html")
+
+@app.route("/api/search_query", methods=['GET'])
+@login_required
+def api_search():
+    query = request.args.get('query', '')
+    search_type = request.args.get('type', 'movie')
+    sort_type = request.args.get('sort', 'relevance')
+    
+    if not query:
+        return jsonify([])
+
+    conn = get_db_connection()
+    results = []
+    
+    try:
+        if search_type in ['movie', 'tv']:
+            results = conn.execute('''
+                SELECT m.id, m.title, m.year, m.poster_url, r.average_rating
+                FROM media m
+                LEFT JOIN ratings r ON m.id = r.media_id
+                WHERE m.title LIKE ? AND m.type = ?
+                ORDER BY CASE WHEN ? = 'rating' THEN r.average_rating END DESC,
+                         CASE WHEN ? = 'year' THEN m.year END DESC,
+                         m.title
+                LIMIT 20
+            ''', (f'%{query}%', search_type, sort_type, sort_type)).fetchall()
+        else:
+            role = 'actor' if search_type == 'actor' else 'actress' if search_type == 'actress' else 'director'
+            results = conn.execute('''
+                SELECT p.id, p.name, p.primary_profession, NULL as photo_url
+                FROM people p
+                JOIN media_people mp ON p.id = mp.person_id
+                WHERE p.name LIKE ? AND mp.role = ?
+                LIMIT 20
+            ''', (f'%{query}%', role)).fetchall()
+    finally:
+        conn.close()
+
+    return jsonify([dict(row) for row in results])
+
+
+@app.route("/api/suggestions", methods=['GET'])
+@login_required
+def api_suggestions():
+    query = request.args.get('query', '')
+    search_type = request.args.get('type', 'movie')
+    
+    if not query:
+        return jsonify([])
+
+    conn = get_db_connection()
+    suggestions = []
+
+    try:
+        if search_type in ['movie', 'tv']:
+            suggestions = conn.execute('''
+                SELECT title
+                FROM media
+                WHERE title LIKE ? AND type = ?
+                LIMIT 10
+            ''', (f'%{query}%', search_type)).fetchall()
+        else:
+            role = 'actor' if search_type == 'actor' else 'actress' if search_type == 'actress' else 'director'
+            suggestions = conn.execute('''
+                SELECT name
+                FROM people p
+                JOIN media_people mp ON p.id = mp.person_id
+                WHERE p.name LIKE ? AND mp.role = ?
+                LIMIT 10
+            ''', (f'%{query}%', role)).fetchall()
+    finally:
+        conn.close()
+
+    return jsonify([row[0] for row in suggestions])
+
 @app.route("/api/save-genre-preference", methods=['POST'])
 @login_required
 def save_genre_preference():
@@ -325,14 +376,17 @@ def save_settings():
         min_rating = float(data.get('min_rating', 6.0))
         year_from = int(data.get('year_from', 1900))
         year_to = int(data.get('year_to', 2024))
+        include_watch_history = data.get('include_watch_history', True)
+        include_ratings = data.get('include_ratings', True)
+        include_favorites = data.get('include_favorites', True)
         
         conn = get_db_connection()
         try:
             conn.execute('''
                 INSERT OR REPLACE INTO user_settings 
-                (user_id, min_rating, year_from, year_to, updated_at)
-                VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-            ''', [current_user.id, min_rating, year_from, year_to])
+                (user_id, min_rating, year_from, year_to, include_watch_history, include_ratings, include_favorites, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ''', [current_user.id, min_rating, year_from, year_to, include_watch_history, include_ratings, include_favorites])
             
             conn.commit()
             return jsonify({'success': True})

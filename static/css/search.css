@@ -1,0 +1,51 @@
+/* search.css */
+
+/* Search bar styling */
+.input-group {
+    margin-bottom: 10px;
+    max-width: 600px;
+    margin: auto;
+}
+
+/* Search results styling */
+.card {
+    width: 100%;
+    margin-bottom: 20px;
+    overflow: hidden;
+}
+
+.card-img {
+    height: 100%;
+    object-fit: cover;
+}
+
+.card-body {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.btn-group .btn {
+    margin-right: 10px;
+}
+
+/* Tooltip styling */
+.btn[title]:hover::after {
+    content: attr(title);
+    position: absolute;
+    background: #333;
+    color: #fff;
+    padding: 5px 10px;
+    border-radius: 5px;
+    bottom: 125%; /* Position above */
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    z-index: 10;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.btn[title]:hover::after {
+    opacity: 1;
+}
