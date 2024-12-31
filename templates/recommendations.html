@@ -1,256 +1,62 @@
 {% extends "base.html" %}
 
-{% block title %}Movie Recommendations - What to Watch{% endblock %}
+{% block title %}Recommended For You{% endblock %}
+
+{% block head %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/search.css') }}">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+{% endblock %}
 
 {% block content %}
-<div class="container">
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                {% if category in ['success', 'preferences-success'] %}
-                    <div class="alert alert-{{ category }} alert-dismissible fade show mt-3" role="alert">
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                {% endif %}
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
+<div class="container mt-4">
+    <h2 class="mb-4">Recommended For You</h2>
 
-    <!-- Filter Bar -->
-    <div class="filter-bar mb-4 mt-4">
-        <div class="row align-items-center">
-            <div class="col">
-                <h2 class="recommendations-title">Your recommendations</h2>
+    <!-- Filters Section -->
+    <div class="filters-section mb-4">
+        <div class="row">
+            <div class="col-md-3">
+                <select id="sortBy" class="form-select">
+                    <option value="relevance">Sort by Relevance</option>
+                    <option value="rating">Sort by Rating</option>
+                    <option value="year">Sort by Year</option>
+                    <option value="title">Sort by Title</option>
+                </select>
             </div>
-            <div class="col-auto">
-                <form id="filterForm" method="GET" action="{{ url_for('recommendations') }}" class="d-flex align-items-center">
-                    <select class="form-select" name="sort" onchange="this.form.submit()">
-                        <option value="relevance" {% if sort_by == 'relevance' %}selected{% endif %}>Sort by Relevance</option>
-                        <option value="rating" {% if sort_by == 'rating' %}selected{% endif %}>Sort by Rating</option>
-                        <option value="year" {% if sort_by == 'year' %}selected{% endif %}>Sort by Year</option>
-                        <option value="title" {% if sort_by == 'title' %}selected{% endif %}>Sort by Title</option>
-                    </select>
-                    <button class="btn btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#filterOptions">
-                        <i class="fas fa-filter"></i> Filters
-                    </button>
-                </form>
+            <div class="col-md-3">
+                <button id="refreshRecommendations" class="btn btn-primary">
+                    <i class="fas fa-sync-alt me-2"></i>Refresh Recommendations
+                </button>
             </div>
         </div>
     </div>
 
-    <!-- Collapsible Filter Options -->
-    <div class="collapse mb-4" id="filterOptions">
-        <div class="card card-body">
-            <form id="advancedFilterForm" method="GET" action="{{ url_for('recommendations') }}">
-                <div class="row">
-                    <div class="col-md-3">
-                        <h5>Genres</h5>
-                        <div class="form-check">
-                            {% for genre in selected_genres %}
-                            <div>
-                                <input class="form-check-input" type="checkbox" name="genres[]" 
-                                       value="{{ genre }}" id="genre{{ loop.index }}" 
-                                       {% if genre in request.args.getlist('genres[]') %}checked{% endif %}>
-                                <label class="form-check-label" for="genre{{ loop.index }}">
-                                    {{ genre }}
-                                </label>
-                            </div>
-                            {% endfor %}
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <h5>Rating</h5>
-                        <input type="range" class="form-range" min="1" max="10" step="0.5" 
-                               id="ratingFilter" name="rating" value="{{ min_rating }}">
-                        <div>Min Rating: <span id="ratingFilterValue">{{ min_rating }}</span></div>
-                    </div>
-                    <div class="col-md-3">
-                        <h5>Year Range</h5>
-                        <div class="year-range">
-                            <input type="number" class="form-control mb-2" name="yearFrom"
-                                   value="{{ year_from }}" min="1900" max="2024">
-                            <input type="number" class="form-control" name="yearTo"
-                                   value="{{ year_to }}" min="1900" max="2024">
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <h5>Languages</h5>
-                        <select class="form-select" multiple name="languages[]">
-                            {% for lang in selected_languages %}
-                            <option value="{{ lang.code }}" 
-                                    {% if lang.code in request.args.getlist('languages[]') %}selected{% endif %}>
-                                {{ lang.name }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                        <button type="submit" class="btn btn-primary mt-3 w-100">Apply Filters</button>
-                    </div>
-                </div>
-            </form>
+    <!-- Loading Spinner -->
+    <div id="loadingSpinner" class="text-center" style="display: none;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
         </div>
+        <p class="mt-2">Generating recommendations...</p>
     </div>
 
-    <!-- Results Grid -->
-    {% if movies %}
-    <div class="row row-cols-1 row-cols-md-4 g-4">
-        {% for movie in movies %}
-        <div class="col">
-            <div class="card h-100 movie-card">
-                <img src="{{ movie.poster_url }}" class="card-img-top" alt="{{ movie.title }}">
-                <div class="card-body">
-                    <h5 class="card-title">{{ movie.title }}</h5>
-                        <div class="movie-info">
-                            <span class="badge bg-primary text-white">{{ movie.year }}</span>
-                            <span class="badge bg-success text-white">{{ movie.rating }}/10</span>
-                        </div>
-                    <p class="card-text">{{ movie.overview[:100] }}...</p>
-                </div>
-                <div class="card-footer">
-                    <button class="btn btn-outline-primary btn-sm w-100" 
-                            data-bs-toggle="modal" 
-                            data-bs-target="#movieModal{{ movie.id }}">
-                        More Info
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Movie Modal -->
-        <div class="modal fade" id="movieModal{{ movie.id }}" tabindex="-1">
-            <div class="modal-dialog modal-lg">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">{{ movie.title }}</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="row">
-                            <div class="col-md-4">
-                                <img src="{{ movie.poster_url }}" class="img-fluid" alt="{{ movie.title }}">
-                            </div>
-                            <div class="col-md-8">
-                                <h6>Overview</h6>
-                                <p>{{ movie.overview }}</p>
-                                <div class="movie-details">
-                                    <p><strong>Release Date:</strong> {{ movie.release_date }}</p>
-                                    <p><strong>Rating:</strong> {{ movie.rating }}/10</p>
-                                    <p><strong>Genres:</strong> {{ movie.genres|join(', ') }}</p>
-                                    <p><strong>Cast:</strong> {{ movie.cast|join(', ') }}</p>
-                                    <p><strong>Director:</strong> {{ movie.director }}</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                        <!-- Add to watchlist button can be added here -->
-                    </div>
-                </div>
-            </div>
-        </div>
-        {% endfor %}
-    </div>
+    <!-- Results Container -->
+    <div id="recommendationsResults" class="row"></div>
 
     <!-- Pagination -->
-    <nav class="mt-4 mb-4">
+    <nav aria-label="Recommendations pagination" class="mt-4">
         <ul class="pagination justify-content-center">
-            <li class="page-item {% if page == 1 %}disabled{% endif %}">
-                <a class="page-link" href="{{ url_for('recommendations', page=page-1, sort=sort_by) }}">Previous</a>
-            </li>
-            {% for p in range(1, total_pages + 1) %}
-            <li class="page-item {% if p == page %}active{% endif %}">
-                <a class="page-link" href="{{ url_for('recommendations', page=p, sort=sort_by) }}">{{ p }}</a>
+            {% for page in range(1, total_pages + 1) %}
+            <li class="page-item {% if page == current_page %}active{% endif %}">
+                <a class="page-link" href="?page={{ page }}">{{ page }}</a>
             </li>
             {% endfor %}
-            <li class="page-item {% if page == total_pages %}disabled{% endif %}">
-                <a class="page-link" href="{{ url_for('recommendations', page=page+1, sort=sort_by) }}">Next</a>
-            </li>
         </ul>
     </nav>
-    {% else %}
-    <div class="alert alert-info" role="alert">
-        No movies found matching your criteria. Try adjusting your filters.
-    </div>
-    {% endif %}
 </div>
+{% endblock %}
 
-<style>
-.movie-card {
-    transition: transform 0.2s;
-    overflow: hidden;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-}
-
-.movie-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-}
-
-.movie-card img {
-    height: 300px;
-    object-fit: cover;
-}
-
-.movie-info {
-    margin: 10px 0;
-}
-
-.movie-info .badge {
-    margin-right: 5px;
-}
-
-.filter-bar {
-    background-color: #f8f9fa;
-    padding: 15px;
-    border-radius: 5px;
-}
-
-.year-range input {
-    width: 100%;
-}
-
-.modal-body img {
-    max-height: 400px;
-    width: 100%;
-    object-fit: cover;
-}
-
-.movie-details p {
-    margin-bottom: 0.5rem;
-}
-
-.form-range {
-    width: 100%;
-}
-
-.alert {
-    margin-top: 1rem;
-}
-
-.pagination {
-    margin-bottom: 2rem;
-}
-</style>
-
-<script>
-// Update rating filter value display
-document.getElementById('ratingFilter').addEventListener('input', function() {
-    document.getElementById('ratingFilterValue').textContent = this.value;
-});
-
-// Auto-dismiss flash messages after 5 seconds
-window.addEventListener('DOMContentLoaded', (event) => {
-    setTimeout(function() {
-        document.querySelectorAll('.alert').forEach(function(alert) {
-            new bootstrap.Alert(alert).close();
-        });
-    }, 5000);
-});
-
-// Submit form when sort selection changes
-document.querySelector('select[name="sort"]').addEventListener('change', function() {
-    document.getElementById('filterForm').submit();
-});
-</script>
+{% block extra_scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/shared.js') }}"></script>
+<script src="{{ url_for('static', filename='js/recommendations.js') }}"></script>
 {% endblock %}

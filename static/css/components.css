@@ -128,3 +128,31 @@ input[type="password"]::-webkit-credentials-auto-fill-button {
 .toggle-password:hover {
     opacity: 1;
 }
+
+.rating {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.rating .fa-star {
+    color: #ffc107;
+}
+
+.rating-value {
+    font-weight: bold;
+    font-size: 1.1em;
+}
+
+.rating .small {
+    font-size: 0.85em;
+}
+
+.rate-media.user-rated {
+    color: #ffc107;
+}
+
+.rate-media:hover {
+    color: #ffc107;
+    transform: scale(1.1);
+}

@@ -58,6 +58,26 @@ function initializeGenrePreferences() {
             }
         });
     });
+
+    const getRecommendationsBtn = document.getElementById('getRecommendationsBtn');
+    if (getRecommendationsBtn) {
+        getRecommendationsBtn.addEventListener('click', async function() {
+            this.disabled = true;
+            this.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Generating recommendations...';
+            
+            try {
+                // First save all current preferences
+                await saveGeneralSettings();
+                
+                // Redirect to recommendations page with refresh parameter
+                window.location.href = '/recommendations?refresh=true';
+            } catch (error) {
+                showToast('Error saving preferences', 'error');
+                this.disabled = false;
+                this.innerHTML = '<i class="fas fa-magic me-2"></i>Get Recommendations';
+            }
+        });
+    }
 }
 
 async function saveGenrePreference(genreId, checked, weight) {

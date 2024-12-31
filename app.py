@@ -66,7 +66,6 @@ def load_user(user_id):
 @app.route("/")
 def index():
     if current_user.is_authenticated:
-        # Get stored recommendations for homepage
         recommendations = recommender.get_stored_recommendations(current_user.id, limit=6)
         return render_template("index.html", recommended_movies=recommendations)
     return render_template("index.html", recommended_movies=[])
@@ -674,100 +673,84 @@ def profile():
 @app.route("/recommendations")
 @login_required
 def recommendations():
-    # Get query parameters
     page = request.args.get('page', 1, type=int)
     sort_by = request.args.get('sort', 'relevance')
-    min_rating = request.args.get('rating', 6.0, type=float)
-    year_from = request.args.get('yearFrom', 1900, type=int)
-    year_to = request.args.get('yearTo', 2024, type=int)
-    selected_genres = request.args.getlist('genres[]')
-    selected_languages = request.args.getlist('languages[]')
+    refresh = request.args.get('refresh', 'false').lower() == 'true'
     
-    # Get recommendations
-    recommendations = recommender.get_recommendations(current_user.id)
+    # If refresh is requested, generate new recommendations
+    if refresh:
+        recommender.refresh_recommendations(current_user.id)
     
-    # Apply filters
-    filtered_movies = []
+    # Get stored recommendations
+    recommendations = recommender.get_stored_recommendations(current_user.id)
+    
+    # Convert Row objects to dictionaries
+    recommendations_list = []
     for rec in recommendations:
-        movie = rec['movie']
-        # Add additional movie info
-        movie['overview'] = movie.get('plot', '')  # Use plot field from your database
-        movie['rating'] = movie.get('average_rating', 0)
-        movie['release_date'] = str(movie.get('year', ''))
+        rec_dict = dict(rec)  # Convert Row to dictionary
         
-        # Get genres for the movie
+        # Get additional data if needed
         conn = get_db_connection()
-        genres = conn.execute('''
-            SELECT g.name 
-            FROM media_genres mg 
-            JOIN genres g ON mg.genre_id = g.id 
-            WHERE mg.media_id = ?
-        ''', [movie['id']]).fetchall()
-        movie['genres'] = [g['name'] for g in genres]
+        try:
+            # Get genres
+            genres = conn.execute('''
+                SELECT g.name 
+                FROM media_genres mg 
+                JOIN genres g ON mg.genre_id = g.id 
+                WHERE mg.media_id = ?
+            ''', [rec_dict['id']]).fetchall()
+            rec_dict['genres'] = [g['name'] for g in genres]
+            
+            # Check if in favorites
+            favorite = conn.execute('''
+                SELECT 1 FROM favorites 
+                WHERE user_id = ? AND item_id = ? AND item_type = 'media'
+            ''', [current_user.id, rec_dict['id']]).fetchone()
+            rec_dict['is_favorite'] = favorite is not None
+            
+            # Check if in watchlist
+            watchlist = conn.execute('''
+                SELECT 1 FROM watchlist 
+                WHERE user_id = ? AND media_id = ?
+            ''', [current_user.id, rec_dict['id']]).fetchone()
+            rec_dict['in_watchlist'] = watchlist is not None
+            
+        finally:
+            conn.close()
         
-        # Get cast and director
-        people = conn.execute('''
-            SELECT p.name, mp.role 
-            FROM media_people mp 
-            JOIN people p ON mp.person_id = p.id 
-            WHERE mp.media_id = ? AND mp.role IN ('actor', 'director')
-        ''', [movie['id']]).fetchall()
-        
-        movie['cast'] = [p['name'] for p in people if p['role'] == 'actor'][:5]  # Limit to 5 actors
-        movie['director'] = next((p['name'] for p in people if p['role'] == 'director'), 'Unknown')
-        
-        conn.close()
-        
-        # Apply filters
-        if (
-            (not selected_genres or any(g in selected_genres for g in movie['genres'])) and
-            movie.get('rating', 0) >= min_rating and
-            year_from <= movie.get('year', 0) <= year_to
-        ):
-            filtered_movies.append(movie)
+        recommendations_list.append(rec_dict)
     
-    # Sort movies
+    # Apply sorting
     if sort_by == 'rating':
-        filtered_movies.sort(key=lambda x: x.get('rating', 0), reverse=True)
+        recommendations_list.sort(key=lambda x: x.get('average_rating', 0) or 0, reverse=True)
     elif sort_by == 'year':
-        filtered_movies.sort(key=lambda x: x.get('year', 0), reverse=True)
+        recommendations_list.sort(key=lambda x: x.get('year', 0) or 0, reverse=True)
     elif sort_by == 'title':
-        filtered_movies.sort(key=lambda x: x.get('title', ''))
-    # relevance is default (no sort needed as recommendations are already sorted)
+        recommendations_list.sort(key=lambda x: x.get('title', '').lower())
     
     # Pagination
     items_per_page = 12
-    total_items = len(filtered_movies)
+    total_items = len(recommendations_list)
     total_pages = math.ceil(total_items / items_per_page)
     start_idx = (page - 1) * items_per_page
     end_idx = start_idx + items_per_page
-    current_page_movies = filtered_movies[start_idx:end_idx]
     
-    # Get all available genres and languages for filters
-    conn = get_db_connection()
-    all_genres = [g['name'] for g in conn.execute('SELECT name FROM genres ORDER BY name').fetchall()]
-    
-    # For languages, you might want to add a languages table, for now using a static list
-    all_languages = [
-        {'code': 'en', 'name': 'English'},
-        {'code': 'es', 'name': 'Spanish'},
-        {'code': 'fr', 'name': 'French'},
-        # Add more languages as needed
-    ]
-    conn.close()
+    current_page_items = recommendations_list[start_idx:end_idx]
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({
+            'items': current_page_items,
+            'total_pages': total_pages,
+            'current_page': page
+        })
     
     return render_template(
-        "recommendations.html",
-        movies=current_page_movies,
-        page=page,
-        total_pages=total_pages,
-        sort_by=sort_by,
-        min_rating=min_rating,
-        year_from=year_from,
-        year_to=year_to,
-        selected_genres=all_genres,
-        selected_languages=all_languages
+        'recommendations.html',
+        recommendations=current_page_items,
+        current_page=page,
+        total_pages=total_pages
     )
-
+    
 if __name__ == '__main__':
-    app.run(debug=True)
+    print("Starting Flask application...")
+    app.run(debug=True, host='127.0.0.1')
