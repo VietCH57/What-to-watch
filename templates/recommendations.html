@@ -13,34 +13,29 @@
     <h2 class="mb-4">Recommended For You</h2>
 
     <!-- Filters Section -->
-    <div class="filters-section mb-4">
-        <div class="row">
-            <div class="col-md-3">
-                <select id="sortBy" class="form-select">
-                    <option value="relevance">Sort by Relevance</option>
-                    <option value="rating">Sort by Rating</option>
-                    <option value="year">Sort by Year</option>
-                    <option value="title">Sort by Title</option>
-                </select>
-            </div>
-            <div class="col-md-3">
-                <button id="refreshRecommendations" class="btn btn-primary">
-                    <i class="fas fa-sync-alt me-2"></i>Refresh Recommendations
-                </button>
-            </div>
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <select id="sortBy" class="form-select">
+                <option value="relevance">Sort by Relevance</option>
+                <option value="rating">Sort by Rating</option>
+                <option value="year">Sort by Year</option>
+                <option value="title">Sort by Title</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <button id="refreshRecommendations" class="btn btn-primary">
+                <i class="fas fa-sync-alt me-2"></i>Refresh Recommendations
+            </button>
         </div>
     </div>
 
     <!-- Loading Spinner -->
     <div id="loadingSpinner" class="text-center" style="display: none;">
-        <div class="spinner-border text-primary" role="status">
-            <span class="visually-hidden">Loading...</span>
-        </div>
-        <p class="mt-2">Generating recommendations...</p>
+        <div class="spinner-border text-primary" role="status"></div>
     </div>
 
     <!-- Results Container -->
-    <div id="recommendationsResults" class="row"></div>
+    <div id="recommendationsResults" class="row g-4"></div>
 
     <!-- Pagination -->
     <nav aria-label="Recommendations pagination" class="mt-4">
@@ -53,6 +48,41 @@
         </ul>
     </nav>
 </div>
+
+<style>
+#recommendationsResults {
+    display: flex;
+    flex-wrap: wrap;
+    margin: -12px; 
+}
+
+#recommendationsResults > div {
+    padding: 12px;
+    width: 33.333%;
+}
+
+.card {
+    height: 100%;
+    margin: 0;
+}
+
+.card-img-top {
+    height: 300px;
+    object-fit: cover;
+}
+
+@media (max-width: 991px) {
+    #recommendationsResults > div {
+        width: 50%;
+    }
+}
+
+@media (max-width: 575px) {
+    #recommendationsResults > div {
+        width: 100%;
+    }
+}
+</style>
 {% endblock %}
 
 {% block extra_scripts %}

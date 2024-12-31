@@ -7,7 +7,6 @@ const MediaUtils = {
         const isFavorite = Boolean(item.is_favorite);
         const inWatchlist = Boolean(item.in_watchlist);
         
-        // Format rating display
         const rating = item.average_rating ? 
             `<div class="rating mb-2">
                 <i class="fas fa-star text-warning"></i>
@@ -16,9 +15,9 @@ const MediaUtils = {
              </div>` 
             : '<div class="rating mb-2">No ratings yet</div>';
     
-        container.append(`
-            <div class="col-md-4">
-                <div class="card d-flex flex-column h-100">
+        const cardElement = $(`
+            <div class="col-lg-4 col-md-6 col-12">
+                <div class="card">
                     <img src="${item.poster_url || '/static/images/no-poster.png'}" 
                          class="card-img-top" 
                          alt="${item.title}"
@@ -69,8 +68,11 @@ const MediaUtils = {
             </div>
         `);
     
-        container.find('[data-bs-toggle="tooltip"]').tooltip();
-        container.find('.card').hover(
+        container.append(cardElement);
+    
+        // Initialize tooltips and hover effect
+        cardElement.find('[data-bs-toggle="tooltip"]').tooltip();
+        cardElement.find('.card').hover(
             function() { $(this).addClass('shadow-lg'); },
             function() { $(this).removeClass('shadow-lg'); }
         );

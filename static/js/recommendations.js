@@ -43,25 +43,21 @@ $(document).ready(function() {
     async function displayResults(results) {
         const container = $("#recommendationsResults");
         container.empty();
-
+    
         if (!results || !results.length) {
             container.html('<div class="col-12 text-center mt-4">No recommendations found</div>');
             return;
         }
-
-        for (let i = 0; i < results.length; i += 3) {
-            const rowDiv = $('<div class="row mb-4"></div>');
-            container.append(rowDiv);
-            
-            const rowItems = results.slice(i, i + 3);
-            for (const item of rowItems) {
-                if (typeof item.is_favorite !== 'boolean') {
-                    item.is_favorite = await MediaUtils.checkFavoriteStatus(item.id);
-                }
-                MediaUtils.displayMediaCard(rowDiv, item);
+    
+        // Create individual cards without wrapping in additional row divs
+        for (const item of results) {
+            if (typeof item.is_favorite !== 'boolean') {
+                item.is_favorite = await MediaUtils.checkFavoriteStatus(item.id);
             }
+            MediaUtils.displayMediaCard(container, item);
         }
-
+    
+        // Initialize tooltips
         $('[data-bs-toggle="tooltip"]').tooltip();
     }
 
