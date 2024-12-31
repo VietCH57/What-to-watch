@@ -289,12 +289,16 @@ def api_search():
 @app.route('/api/check-favorite/<int:media_id>')
 @login_required
 def check_favorite(media_id):
-    is_favorite = db.session.query(Favorite).filter_by(
-        user_id=current_user.id,
-        item_id=media_id,
-        item_type='media'
-    ).first() is not None
-    return jsonify({'is_favorite': is_favorite})
+    conn = get_db_connection()
+    try:
+        result = conn.execute('''
+            SELECT 1 FROM favorites 
+            WHERE user_id = ? AND item_id = ? AND item_type = 'media'
+        ''', [current_user.id, media_id]).fetchone()
+        
+        return jsonify({'is_favorite': result is not None})
+    finally:
+        conn.close()
 
 @app.template_filter('datetime')
 def format_datetime(value):

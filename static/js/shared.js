@@ -34,12 +34,12 @@ const MediaUtils = {
                         </div>
                         <div class="card-bottom mt-auto">
                             <div class="action-buttons">
-                                <button class="btn btn-sm btn-icon rate-media" 
+                                <button class="btn btn-sm btn-icon add-to-watchlist ${inWatchlist ? 'active' : ''}" 
                                         data-bs-toggle="tooltip" 
-                                        title="Rate"
+                                        title="${inWatchlist ? 'Remove from Watchlist' : 'Add to Watchlist'}"
                                         data-media-id="${item.id}"
-                                        data-current-rating="${item.user_rating || 0}">
-                                    <i class="fas fa-star"></i>
+                                        data-in-watchlist="${inWatchlist}">
+                                    <i class="fas fa-list"></i>
                                 </button>
                                 <button class="btn btn-sm btn-icon add-to-history" 
                                         data-bs-toggle="tooltip" 
@@ -54,19 +54,19 @@ const MediaUtils = {
                                         data-is-favorite="${isFavorite}">
                                     <i class="fa${isFavorite ? 's' : 'r'} fa-heart"></i>
                                 </button>
-                                <button class="btn btn-sm btn-icon add-to-watchlist ${inWatchlist ? 'active' : ''}" 
-                                        data-bs-toggle="tooltip" 
-                                        title="${inWatchlist ? 'Remove from Watchlist' : 'Add to Watchlist'}"
-                                        data-media-id="${item.id}"
-                                        data-in-watchlist="${inWatchlist}">
-                                    <i class="fas fa-list"></i>
-                                </button>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
         `);
+    
+        container.append(cardElement);
+
+        cardElement.find('.toggle-favorite').on('click', function(e) {
+            e.preventDefault();
+            MediaUtils.handleToggleFavorite($(this), item.id);
+        });
     
         container.append(cardElement);
     
@@ -91,8 +91,8 @@ const MediaUtils = {
 
     handleToggleFavorite: function(button, mediaId) {
         const isFavorite = button.hasClass('active');
-        MediaUtils.updateFavoriteButton(button, !isFavorite);
         
+        // Don't update UI until we get server confirmation
         $.ajax({
             url: '/api/favorites',
             method: isFavorite ? 'DELETE' : 'POST',
@@ -102,17 +102,94 @@ const MediaUtils = {
                 item_type: 'media'
             }),
             success: function(response) {
-                MediaUtils.showToast(isFavorite ? 'Removed from favorites' : 'Added to favorites');
+                const newState = !isFavorite;
+                
+                // Update all buttons for this media ID across the page
                 $(`.toggle-favorite[data-media-id="${mediaId}"]`).each(function() {
-                    MediaUtils.updateFavoriteButton($(this), !isFavorite);
+                    const btn = $(this);
+                    
+                    // Update button state
+                    btn.toggleClass('active', newState);
+                    
+                    // Update icon
+                    const icon = btn.find('i');
+                    icon.removeClass('fas far').addClass(newState ? 'fas' : 'far');
+                    
+                    // Update tooltip
+                    const tooltipText = newState ? 'Remove from Favorites' : 'Add to Favorites';
+                    btn.attr('title', tooltipText);
+                    btn.attr('data-bs-original-title', tooltipText);
+                    
+                    // Update data attribute
+                    btn.attr('data-is-favorite', newState);
+                    
+                    // Refresh tooltip
+                    const tooltip = bootstrap.Tooltip.getInstance(btn[0]);
+                    if (tooltip) {
+                        tooltip.dispose();
+                    }
+                    new bootstrap.Tooltip(btn[0]);
+                });
+                
+                // Also update any card containers that might show favorite status
+                $(`.card[data-media-id="${mediaId}"]`).each(function() {
+                    $(this).attr('data-is-favorite', newState);
+                });
+                
+                MediaUtils.showToast(newState ? 'Added to favorites' : 'Removed from favorites');
+                
+                // Trigger a custom event that other components can listen to
+                $(document).trigger('favoriteStatusChanged', {
+                    mediaId: mediaId,
+                    isFavorite: newState
                 });
             },
             error: function(xhr) {
-                MediaUtils.updateFavoriteButton(button, isFavorite);
                 MediaUtils.showToast('Error updating favorites', 'error');
             }
         });
     },
+    
+    updateFavoriteButton: function(button, isFavorite) {
+        // Dispose of existing tooltip
+        const tooltip = bootstrap.Tooltip.getInstance(button[0]);
+        if (tooltip) {
+            tooltip.dispose();
+        }
+    
+        // Update button state and attributes
+        button.toggleClass('active', isFavorite);
+        button.attr('data-is-favorite', isFavorite);
+        
+        // Update icon
+        const icon = button.find('i');
+        icon.removeClass('fas far').addClass(isFavorite ? 'fas' : 'far');
+        
+        // Update tooltip title
+        const tooltipTitle = isFavorite ? 'Remove from Favorites' : 'Add to Favorites';
+        button.attr('title', tooltipTitle);
+        button.attr('data-bs-original-title', tooltipTitle);
+        
+        // Initialize new tooltip
+        new bootstrap.Tooltip(button[0]);
+    },
+
+
+    checkFavoriteStatus: function(mediaId) {
+        return new Promise((resolve) => {
+            $.ajax({
+                url: `/api/check-favorite/${mediaId}`,
+                method: 'GET',
+                success: function(response) {
+                    resolve(response.is_favorite);
+                },
+                error: function() {
+                    resolve(false);
+                }
+            });
+        });
+    },
+
 
     // shared.js (continued)
     handleAddToWatchlist: function(button, mediaId) {
@@ -131,34 +208,6 @@ const MediaUtils = {
         .fail(() => MediaUtils.showToast('Error updating watchlist', 'error'));
     },
 
-    updateFavoriteButton: function(button, isFavorite) {
-        button.toggleClass('active', isFavorite);
-        const icon = button.find('i');
-        icon.toggleClass('fas', isFavorite).toggleClass('far', !isFavorite);
-        button.attr('title', isFavorite ? 'Remove from Favorites' : 'Add to Favorites');
-        button.attr('data-is-favorite', isFavorite);
-        
-        const tooltip = bootstrap.Tooltip.getInstance(button);
-        if (tooltip) {
-            tooltip.dispose();
-        }
-        new bootstrap.Tooltip(button);
-    },
-
-    checkFavoriteStatus: function(mediaId) {
-        return new Promise((resolve) => {
-            $.ajax({
-                url: `/api/check-favorite/${mediaId}`,
-                method: 'GET',
-                success: function(response) {
-                    resolve(response.is_favorite);
-                },
-                error: function() {
-                    resolve(false);
-                }
-            });
-        });
-    },
 
     showToast: function(message, type = 'success') {
         const toast = $(`
