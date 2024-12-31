@@ -1,5 +1,5 @@
 # What to Watch - Movie and TV Show Recommendation Platform
-#### Video Demo: <URL HERE>
+#### Video Demo: https://youtu.be/zsOQNdUQS58?si=1-0RYOpkc1LbsVaT
 #### Description:
 
 "What to Watch" is a dynamic web application built to solve the common problem of deciding what to watch next. This personalized recommendation platform helps users discover movies and TV shows based on their preferences, viewing history, and rating patterns. Built with Python, JavaScript, HTML, and CSS, it offers an intuitive interface for managing your entertainment choices.
@@ -11,21 +11,21 @@
 - Genre-based filtering with customizable weights
 - Rating-based suggestions (1-10 scale)
 - Year range filtering for content discovery
-- Personalized watchlist with priority settings
+- Personalized watchlist 
 
 ### 2. User Management
 - Secure user authentication system
-- Customizable user profiles
-- Watch history tracking
-- Favorite content management
-- Personal watchlist organization
+- Customizable user profiles:
++ Watch history tracking
++ Favorite content management
++ Personal watchlist organization
++ Personal movie/ TV shows ratings
 
 ### 3. Search and Discovery
 - Advanced search functionality with autocomplete
-- Multiple search types (movies, TV shows)
-- Sort options for search results
-- Interactive media cards with detailed information
 - Real-time suggestions as you type
+- Multiple search types (movies, TV shows)
+- Interactive media cards with detailed information
 
 ### 4. Interactive Interface
 - Dark/Light mode toggle
@@ -43,6 +43,7 @@
   - `preferences.js`: Manages user preferences and genre weights
   - `shared.js`: Contains shared utilities and media card rendering
   - `main.js`: Core application logic and initialization
+  - `recommendation.js`: Manage recommened media list loader
 
 - **CSS Styling:**
   - Responsive design implementation
@@ -60,20 +61,22 @@
 ### Templates (`templates/` directory)
 - `base.html`: Base template with common elements
 - `profile.html`: User profile management
-- Other templates for various application views
+- `index.html`: Index page with 2 stages (logged in or not)
+- `search.html`: Search page
+- `preferences.html`: Let users choose personal preferences for the recommendation algorithm
+- `recommendations.html`: Display the recommended media list
+- `login.html` and `register.html`: User authentication
 
 ## Database Structure
 - Users table for account management
 - Media items (movies and TV shows)
-- User preferences and ratings
+- User preferences, settings and ratings
 - Watch history tracking
 - Watchlist with priority settings
 
 ## API Integration
-- Movie and TV show data integration
-- Real-time search and suggestions
-- Rating and review system
-- Watchlist management endpoints
+- There's no API intergration in this project. Because the programmer doesn't have access to a real website, he can't apply for API keys.
+- Instead, this project use python scripts to download and import imdb's public dataset, hence no posters available.
 
 ## Security Features
 - Secure password handling
@@ -105,18 +108,16 @@
 - Social features for sharing recommendations
 - Advanced filtering options
 - Machine learning-based recommendations
-- Integration with more streaming platforms
 - Community ratings and reviews
+- Import posters into database
+- Or use tmdb API for all informations and posters
 
 ## Installation and Setup
 1. Clone the repository
 2. Install required dependencies
-3. Configure database settings
-4. Set up environment variables
-5. Run the application
+3. Download the database, via https://drive.google.com/drive/folders/1sFBGanaAl6czI4GuDEIfn5lhXJVW6pdr?usp=sharing
+4. Change the DB_PATH virable to your database path (it should end with movies.db)
+5. Run "python app.py"
 
 ## Contributing
 Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-[Your chosen license]
