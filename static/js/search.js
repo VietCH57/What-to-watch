@@ -1,6 +1,8 @@
-// static/js/search.js
-
 $(document).ready(function() {
+    // Initialize variables for rating modal
+    let currentRatingMediaId = null;
+    const ratingModal = new bootstrap.Modal(document.getElementById('ratingModal'));
+
     // Autocomplete initialization
     $("#searchInput").autocomplete({
         source: function(request, response) {
@@ -12,7 +14,6 @@ $(document).ready(function() {
                     type: $("#searchType").val()
                 },
                 success: function(data) {
-                    // Sort suggestions to prioritize exact matches
                     data.sort((a, b) => {
                         const aStartsWith = a.value.toLowerCase().startsWith(request.term.toLowerCase());
                         const bStartsWith = b.value.toLowerCase().startsWith(request.term.toLowerCase());
@@ -33,37 +34,14 @@ $(document).ready(function() {
     }).autocomplete("instance")._renderItem = function(ul, item) {
         const searchTerm = this.term.toLowerCase();
         const title = item.value;
-        const isDarkMode = document.documentElement.getAttribute('data-theme') === 'dark';
-        
-        // Add a class to the ul element for dark mode styling
-        $(ul).addClass('ui-autocomplete-custom');
-        if (isDarkMode) {
-            $(ul).addClass('dark-mode');
-        }
-
         const highlightedTitle = title.replace(
-            new RegExp('(' + searchTerm + ')', 'gi'),
-            `<strong style="color: ${isDarkMode ? '#007bff' : '#0056b3'}">$1</strong>`
+            new RegExp('^(' + searchTerm + ')', 'i'),
+            '<strong>$1</strong>'
         );
-
         return $("<li>")
             .append(`<div>${highlightedTitle} (${item.label.split('(')[1]}`)
             .appendTo(ul);
     };
-
-    const observer = new MutationObserver(function(mutations) {
-        mutations.forEach(function(mutation) {
-            if (mutation.attributeName === "data-theme") {
-                const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-                $('.ui-autocomplete').toggleClass('dark-mode', isDark);
-            }
-        });
-    });
-
-    observer.observe(document.documentElement, {
-        attributes: true,
-        attributeFilter: ['data-theme']
-    });
 
     // Initialize tooltips
     $('[data-bs-toggle="tooltip"]').tooltip();
@@ -120,17 +98,14 @@ $(document).ready(function() {
             return;
         }
     
-        // Create rows of 3 cards each
         for (let i = 0; i < results.length; i += 3) {
-            const rowDiv = $('<div class="row mb-4"></div>'); // Add margin-bottom to rows
+            const rowDiv = $('<div class="row mb-4"></div>');
             container.append(rowDiv);
             
-            // Add up to 3 cards in this row
             const rowCards = results.slice(i, i + 3);
             rowCards.forEach(item => displayMediaCard(rowDiv, item));
         }
         
-        // Reinitialize tooltips
         $('[data-bs-toggle="tooltip"]').tooltip();
     }
 
@@ -164,7 +139,7 @@ $(document).ready(function() {
                             <div class="rating-section">
                                 <div class="rating">
                                     <i class="fas fa-star text-warning"></i>
-                                    <span>${ratingDisplay}</span>
+                                    <span class="rating-value">${ratingDisplay}</span>
                                 </div>
                             </div>
                             <div class="action-buttons">
@@ -191,20 +166,21 @@ $(document).ready(function() {
                                         title="Rate"
                                         data-media-id="${item.id}">
                                     <i class="fas fa-star"></i>
-                            </button>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
-    `);
-}
+        `);
+    }
+
     // Action button handlers
     $(document).on('click', '.action-buttons button', function(e) {
         e.preventDefault();
         const mediaId = $(this).data('media-id');
         const button = $(this);
-
+    
         if (button.hasClass('add-to-history')) {
             handleAddToHistory(mediaId);
         } else if (button.hasClass('toggle-favorite')) {
@@ -212,15 +188,26 @@ $(document).ready(function() {
         } else if (button.hasClass('add-to-watchlist')) {
             handleAddToWatchlist(button, mediaId);
         } else if (button.hasClass('rate-media')) {
-            showRatingModal(mediaId);
+            currentMediaId = mediaId;
+            // Get current rating if exists
+            const ratingDisplay = $(`.rating[data-media-id="${mediaId}"] .rating-value`).text();
+            const currentRating = ratingDisplay.match(/(\d+(\.\d+)?)/);
+            $('#ratingSlider').val(currentRating ? Math.round(parseFloat(currentRating[1])) : 5);
+            $('#currentRating').text($('#ratingSlider').val());
+            ratingModal.show();
         }
     });
 
     // API handlers
     function handleAddToHistory(mediaId) {
-        $.post('/api/watch-history', { media_id: mediaId })
-            .done(() => showToast('Added to watch history'))
-            .fail(() => showToast('Error adding to watch history', 'error'));
+        $.ajax({
+            url: '/api/watch-history',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ media_id: mediaId })
+        })
+        .done(() => showToast('Added to watch history'))
+        .fail(() => showToast('Error adding to watch history', 'error'));
     }
 
     function handleToggleFavorite(button, mediaId) {
@@ -228,7 +215,11 @@ $(document).ready(function() {
         $.ajax({
             url: '/api/favorites',
             method: isFavorite ? 'DELETE' : 'POST',
-            data: { media_id: mediaId }
+            contentType: 'application/json',
+            data: JSON.stringify({ 
+                item_id: mediaId,
+                item_type: 'media'
+            })
         })
         .done(function() {
             button.find('i').toggleClass('far fas');
@@ -244,7 +235,8 @@ $(document).ready(function() {
         $.ajax({
             url: '/api/watchlist',
             method: inWatchlist ? 'DELETE' : 'POST',
-            data: { media_id: mediaId }
+            contentType: 'application/json',
+            data: JSON.stringify({ media_id: mediaId })
         })
         .done(function() {
             button.toggleClass('active');
@@ -254,19 +246,38 @@ $(document).ready(function() {
         .fail(() => showToast('Error updating watchlist', 'error'));
     }
 
-    // Rating modal
-    function showRatingModal(mediaId) {
-        // Implement your rating modal here
-        const rating = prompt('Rate from 1-10:');
-        if (rating && !isNaN(rating) && rating >= 1 && rating <= 10) {
-            $.post('/api/update-rating', {
-                media_id: mediaId,
-                rating: parseFloat(rating)
-            })
-            .done(() => showToast('Rating updated'))
-            .fail(() => showToast('Error updating rating', 'error'));
+    // Handle rating slider change
+    $('#ratingSlider').on('input', function() {
+        $('#currentRating').text(this.value);
+    });
+
+    // Handle rating submission
+    $('#submitRating').click(function() {
+        const rating = parseInt($('#ratingSlider').val());
+        
+        if (currentMediaId && rating >= 1 && rating <= 10) {
+            $.ajax({
+                url: '/api/update-rating',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    media_id: currentMediaId,
+                    rating: rating
+                }),
+                success: function(response) {
+                    $(`.rating[data-media-id="${currentMediaId}"] .rating-value`)
+                        .text(`${rating.toFixed(1)} (Your rating)`);
+                    
+                    ratingModal.hide();
+                    showToast('Rating updated successfully');
+                },
+                error: function(xhr) {
+                    const errorMsg = xhr.responseJSON?.error || 'Error updating rating';
+                    showToast(errorMsg, 'error');
+                }
+            });
         }
-    }
+    });
 
     // Toast notification
     function showToast(message, type = 'success') {

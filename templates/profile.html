@@ -1,0 +1,385 @@
+{% extends "base.html" %}
+
+{% block title %}
+    Profile - What to Watch
+{% endblock %}
+
+{% block content %}
+<div class="container mt-5 pt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2 class="text-color">{{ current_user.username }}'s Profile</h2>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <ul class="nav nav-tabs mb-4" id="profileTabs" role="tablist">
+        <li class="nav-item">
+            <a class="nav-link active" id="history-tab" data-toggle="tab" href="#history" role="tab">Watch History</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" id="watchlist-tab" data-toggle="tab" href="#watchlist" role="tab">Watchlist</a>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content" id="profileTabsContent">
+        <!-- Watch History Tab -->
+        <div class="tab-pane fade show active" id="history" role="tabpanel">
+            <div class="table-responsive">
+                <table class="table" id="historyTable">
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>Year</th>
+                            <th>Type</th>
+                            <th>Watch Date</th>
+                            <th>Rating</th>
+                            <th>Favorite</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in watch_history %}
+                        <tr>
+                            <td>{{ item.title }}</td>
+                            <td>{{ item.year }}</td>
+                            <td>{{ item.type|title }}</td>
+                            <td>{{ item.watch_date|datetime if item.watch_date else 'N/A' }}</td>
+                            <td class="rating-cell" data-media-id="{{ item.id }}">
+                                {% if item.rating %}
+                                    <span class="text-warning rating-display">
+                                        {% for i in range(item.rating) %}★{% endfor %}
+                                        {% for i in range(10 - item.rating) %}☆{% endfor %}
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted rating-display">Not rated</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <button class="btn btn-link favorite-btn p-0" 
+                                        data-media-id="{{ item.id }}" 
+                                        data-is-favorite="{{ item.is_favorite|int }}">
+                                    <i class="{% if item.is_favorite %}fas{% else %}far{% endif %} fa-heart text-danger"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Watchlist Tab -->
+        <div class="tab-pane fade" id="watchlist" role="tabpanel">
+            <div class="table-responsive">
+                <table class="table" id="watchlistTable">
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>Year</th>
+                            <th>Type</th>
+                            <th>Priority</th>
+                            <th>Date Added</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in watchlist %}
+                        <tr>
+                            <td>{{ item.title }}</td>
+                            <td>{{ item.year }}</td>
+                            <td>{{ item.type|title }}</td>
+                            <td>
+                                <select class="form-control priority-select" data-media-id="{{ item.id }}">
+                                    <option value="1" {% if item.priority == 1 %}selected{% endif %}>High</option>
+                                    <option value="2" {% if item.priority == 2 %}selected{% endif %}>Medium</option>
+                                    <option value="3" {% if item.priority == 3 %}selected{% endif %}>Low</option>
+                                </select>
+                            </td>
+                            <td>{{ item.date_added|datetime if item.date_added else 'N/A' }}</td>
+                            <td>
+                                <div class="btn-group">
+                                    <button class="btn btn-link favorite-btn p-0 mr-3" 
+                                            data-media-id="{{ item.id }}" 
+                                            data-is-favorite="{{ item.is_favorite|int }}">
+                                        <i class="{% if item.is_favorite %}fas{% else %}far{% endif %} fa-heart text-danger"></i>
+                                    </button>
+                                    <button class="btn btn-link remove-btn p-0" 
+                                            data-media-id="{{ item.id }}">
+                                        <i class="fas fa-trash-alt text-danger"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Rating Modal -->
+<div class="modal fade" id="ratingModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Rate Movie</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="rating-container">
+                    <input type="range" class="form-range" id="ratingSlider" min="1" max="10" step="1" value="5">
+                    <div class="d-flex justify-content-between">
+                        <span>1</span>
+                        <span id="currentRating">5</span>
+                        <span>10</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="submitRating">Rate</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .table td {
+        vertical-align: middle;
+    }
+    
+    .rating-cell {
+        cursor: pointer;
+    }
+    
+    .rating-cell:hover {
+        background-color: rgba(var(--bs-primary-rgb), 0.1);
+    }
+    
+    .rating-container {
+        padding: 20px;
+    }
+
+    #ratingSlider {
+        width: 100%;
+    }
+
+    #currentRating {
+        font-weight: bold;
+        color: var(--accent-color);
+    }
+    
+    .favorite-btn:hover {
+        transform: scale(1.1);
+        transition: transform 0.2s ease;
+    }
+    
+    .remove-btn:hover {
+        transform: scale(1.1);
+        transition: transform 0.2s ease;
+    }
+
+    /* Dark mode support */
+    [data-theme="dark"] .table {
+        color: var(--text-color);
+    }
+
+    [data-theme="dark"] .nav-tabs .nav-link {
+        color: var(--text-color);
+    }
+
+    [data-theme="dark"] .nav-tabs .nav-link.active {
+        background-color: var(--card-background);
+        color: var(--accent-color);
+        border-color: var(--accent-color);
+    }
+</style>
+
+{% block extra_head %}
+<!-- DataTables CSS -->
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.24/css/dataTables.bootstrap4.css">
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/responsive/2.2.7/css/responsive.bootstrap4.css">
+{% endblock %}
+
+{% block extra_scripts %}
+<!-- DataTables JavaScript -->
+<script type="text/javascript" src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/1.10.24/js/dataTables.bootstrap4.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/responsive/2.2.7/js/dataTables.responsive.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/responsive/2.2.7/js/responsive.bootstrap4.js"></script>
+
+<script>
+$(document).ready(function() {
+    // Destroy existing DataTables instances if they exist
+    if ($.fn.DataTable.isDataTable('#historyTable')) {
+        $('#historyTable').DataTable().destroy();
+    }
+    if ($.fn.DataTable.isDataTable('#watchlistTable')) {
+        $('#watchlistTable').DataTable().destroy();
+    }
+
+    // Initialize DataTables
+    const historyTable = $('#historyTable').DataTable({
+            responsive: true,
+            order: [[3, 'desc']], // Sort by watch date by default
+            pageLength: 10,
+            language: {
+                search: "Search: ",
+                lengthMenu: "Show _MENU_ entries per page",
+                info: "Showing _START_ to _END_ of _TOTAL_ entries"
+            }
+        });
+
+    const watchlistTable = $('#watchlistTable').DataTable({
+        responsive: true,
+        order: [[3, 'asc']], // Sort by priority by default
+        pageLength: 10,
+        language: {
+            search: "Search: ",
+            lengthMenu: "Show _MENU_ entries per page",
+            info: "Showing _START_ to _END_ of _TOTAL_ entries"
+        }
+    });
+
+    let currentMediaId = null;
+    const ratingModal = new bootstrap.Modal(document.getElementById('ratingModal'));
+
+    // Handle rating cell click
+    $(document).on('click', '.rating-cell', function() {
+        currentMediaId = $(this).data('media-id');
+        const currentRating = $(this).find('.rating-display').text().split('★').length - 1;
+        $('#ratingSlider').val(currentRating || 5);
+        $('#currentRating').text($('#ratingSlider').val());
+        ratingModal.show();
+    });
+
+    // Handle rating slider change
+    $('#ratingSlider').on('input', function() {
+        $('#currentRating').text(this.value);
+    });
+
+    // Handle rating submission
+    $('#submitRating').click(function() {
+        const rating = parseInt($('#ratingSlider').val());
+        
+        if (currentMediaId && rating >= 1 && rating <= 10) {
+            $.ajax({
+                url: '/api/update-rating',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    media_id: currentMediaId,
+                    rating: rating
+                }),
+                success: function(response) {
+                    const stars = '★'.repeat(rating) + '☆'.repeat(10 - rating);
+                    $(`.rating-cell[data-media-id="${currentMediaId}"] .rating-display`)
+                        .removeClass('text-muted')
+                        .addClass('text-warning')
+                        .html(stars);
+                    
+                    ratingModal.hide();
+                    showToast(response.message || 'Rating updated successfully');
+                },
+                error: function(xhr) {
+                    const errorMsg = xhr.responseJSON?.error || 'Error updating rating';
+                    showToast(errorMsg, 'error');
+                }
+            });
+        }
+    });
+
+    // Function to initialize interactive elements
+    function initializeInteractiveElements() {
+        // Handle favorite toggling
+        $('.favorite-btn').off('click').on('click', function() {
+            const btn = $(this);
+            const mediaId = btn.data('media-id');
+            const isFavorite = btn.data('is-favorite');
+            
+            $.ajax({
+                url: '/api/favorites',
+                method: isFavorite ? 'DELETE' : 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    item_id: mediaId,
+                    item_type: 'media'
+                }),
+                success: function() {
+                    const icon = btn.find('i');
+                    if (isFavorite) {
+                        icon.removeClass('fas').addClass('far');
+                        btn.data('is-favorite', 0);
+                    } else {
+                        icon.removeClass('far').addClass('fas');
+                        btn.data('is-favorite', 1);
+                    }
+                }
+            });
+        });
+
+        // Handle priority changes
+        $('.priority-select').off('change').on('change', function() {
+            const select = $(this);
+            const mediaId = select.data('media-id');
+            const priority = select.val();
+            
+            $.ajax({
+                url: '/api/watchlist',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    media_id: mediaId,
+                    priority: priority
+                })
+            });
+        });
+
+        // Handle watchlist item removal
+        $('.remove-btn').off('click').on('click', function() {
+            const btn = $(this);
+            const mediaId = btn.data('media-id');
+            const row = btn.closest('tr');
+            
+            if (confirm('Are you sure you want to remove this item from your watchlist?')) {
+                $.ajax({
+                    url: '/api/watchlist',
+                    method: 'DELETE',
+                    contentType: 'application/json',
+                    data: JSON.stringify({
+                        media_id: mediaId
+                    }),
+                    success: function() {
+                        // Remove the row using DataTables API
+                        watchlistTable.row(row).remove().draw();
+                    }
+                });
+            }
+        });
+    }
+
+    // Initialize interactive elements for the first time
+    initializeInteractiveElements();
+
+    // Handle tab changes
+    $('a[data-toggle="tab"]').on('shown.bs.tab', function(e) {
+        // Adjust DataTables columns when switching tabs
+        $.fn.dataTable.tables({ visible: true, api: true }).columns.adjust();
+    });
+
+    // Toast notification function
+    function showToast(message, type = 'success') {
+        const toast = $(`
+            <div class="toast-notification ${type}">
+                ${message}
+            </div>
+        `);
+        $('body').append(toast);
+        setTimeout(() => toast.fadeOut(() => toast.remove()), 3000);
+    }
+});
+</script>
+{% endblock %}
+{% endblock %}

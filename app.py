@@ -5,6 +5,7 @@ import sqlite3
 import os
 import math
 from sqlite3 import Error
+from datetime import datetime
 
 from recommendations import MovieRecommender
 
@@ -263,9 +264,22 @@ def api_search():
     finally:
         conn.close()
 
-
-
-        
+@app.template_filter('datetime')
+def format_datetime(value):
+    if value:
+        if isinstance(value, str):
+            try:
+                dt = datetime.strptime(value, '%Y-%m-%d %H:%M:%S')
+            except ValueError:
+                try:
+                    dt = datetime.strptime(value, '%Y-%m-%d')
+                except ValueError:
+                    return value
+        else:
+            dt = value
+        return dt.strftime('%Y-%m-%d %H:%M')
+    return 'N/A'
+ 
 @app.route("/api/favorites", methods=['POST', 'DELETE'])
 @login_required
 def manage_favorites():
@@ -334,7 +348,11 @@ def manage_watchlist():
 @login_required
 def add_to_history():
     try:
-        data = request.json
+        if request.is_json:
+            data = request.json
+        else:
+            data = request.form
+            
         media_id = data.get('media_id')
 
         if not media_id:
@@ -512,23 +530,113 @@ def save_settings():
 @login_required
 def update_rating():
     try:
-        data = request.json
-        media_id = data['media_id']
-        rating = data['rating']
-        
+        # Handle both JSON and form data
+        if request.is_json:
+            data = request.json
+        else:
+            data = request.form
+
+        media_id = data.get('media_id')
+        rating = data.get('rating')
+
+        if not media_id or rating is None:
+            return jsonify({'error': 'Missing media_id or rating'}), 400
+
+        try:
+            rating = int(rating)
+            if not (1 <= rating <= 10):
+                raise ValueError
+        except (TypeError, ValueError):
+            return jsonify({'error': 'Rating must be an integer between 1 and 10'}), 400
+
         conn = get_db_connection()
-        conn.execute('''
-            UPDATE watch_history
-            SET rating = ?,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE user_id = ? AND media_id = ?
-        ''', [rating, current_user.id, media_id])
-        conn.commit()
-        conn.close()
-        
-        return jsonify({'success': True})
+        try:
+            # First, check if there's a watch history entry
+            watch_history = conn.execute('''
+                SELECT 1 FROM watch_history 
+                WHERE user_id = ? AND media_id = ?
+            ''', [current_user.id, media_id]).fetchone()
+
+            # If no watch history entry exists, create one
+            if not watch_history:
+                conn.execute('''
+                    INSERT INTO watch_history 
+                    (user_id, media_id, rating, watch_date)
+                    VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                ''', [current_user.id, media_id, rating])
+            else:
+                # Update existing watch history entry
+                conn.execute('''
+                    UPDATE watch_history
+                    SET rating = ?
+                    WHERE user_id = ? AND media_id = ?
+                ''', [rating, current_user.id, media_id])
+            
+            conn.commit()
+            return jsonify({
+                'success': True,
+                'message': 'Rating updated successfully'
+            })
+
+        except sqlite3.Error as e:
+            conn.rollback()
+            return jsonify({
+                'error': f'Database error: {str(e)}'
+            }), 500
+        finally:
+            conn.close()
+
     except Exception as e:
-        return jsonify({'error': str(e)}), 400
+        return jsonify({
+            'error': f'Error updating rating: {str(e)}'
+        }), 400
+    
+@app.route("/profile")
+@login_required
+def profile():
+    # Get user's watch history
+    watch_history = query_db("""
+        SELECT 
+            m.id,
+            m.title,
+            m.year,
+            m.type,
+            m.poster_url,
+            wh.watch_date,
+            wh.rating,
+            CASE WHEN f.id IS NOT NULL THEN 1 ELSE 0 END as is_favorite
+        FROM watch_history wh
+        JOIN media m ON wh.media_id = m.id
+        LEFT JOIN favorites f ON f.item_id = m.id 
+            AND f.user_id = wh.user_id 
+            AND f.item_type = 'media'
+        WHERE wh.user_id = ?
+        ORDER BY wh.watch_date DESC
+    """, [current_user.id])
+
+    # Get user's watchlist
+    watchlist = query_db("""
+        SELECT 
+            m.id,
+            m.title,
+            m.year,
+            m.type,
+            m.poster_url,
+            w.priority,
+            w.date_added,
+            CASE WHEN f.id IS NOT NULL THEN 1 ELSE 0 END as is_favorite
+        FROM watchlist w
+        JOIN media m ON w.media_id = m.id
+        LEFT JOIN favorites f ON f.item_id = m.id 
+            AND f.user_id = w.user_id 
+            AND f.item_type = 'media'
+        WHERE w.user_id = ?
+        ORDER BY w.priority ASC, w.date_added DESC
+    """, [current_user.id])
+
+    return render_template("profile.html", 
+                         watch_history=watch_history, 
+                         watchlist=watchlist)
     
 @app.route("/recommendations")
 @login_required

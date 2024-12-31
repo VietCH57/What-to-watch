@@ -37,7 +37,6 @@
 
 .navbar a {
     font-size: 16px;
-    color: var(--text-color);
     text-decoration: none;
     font-weight: 500;
     padding: 8px 20px;
@@ -45,36 +44,29 @@
     transition: all 0.3s ease;
 }
 
-.nav-button {
-    padding: 8px 20px;
-    border-radius: 20px;
-    transition: all 0.3s ease;
-    text-decoration: none;
-    margin: 0 8px;
-    font-size: 1rem;
-    font-weight: 500;
-    border: none;
-    min-width: 100px;
-    text-align: center;
-    display: inline-block;
+/* Navbar Button Styles */
+.navbar a[href*="search"] {
+    border: 2px solid #007bff;
+    color: #007bff;
 }
 
-.search-button {
+.navbar a[href*="search"]:hover {
     background-color: #007bff;
-    color: white !important;
-    height: flex;
-    box-shadow: 0 2px 4px rgba(0, 123, 255, 0.2);
-}
-
-.search-button:hover {
-    background-color: #0056b3;
-    color: white !important;
+    color: white;
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
 }
 
+.navbar a[href*="profile"] {
+    border: 2px solid #28a745;
+    color: #28a745;
+}
 
-/* Auth Button Styles */
+.navbar a[href*="profile"]:hover {
+    background-color: #28a745;
+    color: white;
+    transform: translateY(-2px);
+}
+
 .navbar a[href*="login"] {
     border: 2px solid var(--accent-color);
     color: var(--accent-color);
@@ -110,6 +102,16 @@
 .navbar a[href*="logout"]:hover {
     background-color: #dc3545;
     color: white;
+}
+
+/* Icon styles for navbar items */
+.navbar a i {
+    margin-right: 5px;
+}
+
+.navbar a:hover i {
+    transform: scale(1.1);
+    transition: transform 0.2s ease;
 }
 
 /* Dark Mode Toggle Button */
@@ -150,21 +152,45 @@
     color: white;
 }
 
-/* Update navbar styles to align items */
-.navbar {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    background: transparent;
-    padding: 0;
-    margin: 0;
+/* Responsive Design */
+@media (max-width: 768px) {
+    .header {
+        padding: 0 1rem;
+    }
+
+    .logo {
+        font-size: 24px;
+    }
+
+    .navbar {
+        gap: 10px;
+    }
+
+    .navbar a {
+        padding: 6px 12px;
+        font-size: 14px;
+    }
+
+    .theme-toggle {
+        height: 35px;
+    }
 }
 
-/* Responsive adjustments */
-@media (max-width: 768px) {
+@media (max-width: 576px) {
+    .header {
+        height: 60px;
+    }
+
+    .logo {
+        font-size: 20px;
+    }
+
+    .navbar a {
+        padding: 4px 8px;
+        font-size: 12px;
+    }
+
     .theme-toggle {
-        padding: 6px 15px;
-        font-size: 14px;
-        height: 35px; /* Adjust height for mobile */
+        height: 30px;
     }
 }
