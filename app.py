@@ -204,25 +204,44 @@ def api_search():
 
     conn = get_db_connection()
     try:
+        # Updated query to include favorite status
         query_sql = '''
-            SELECT m.*, 
+            SELECT 
+                m.*,
                 r.average_rating,
                 r.num_votes,
-                GROUP_CONCAT(DISTINCT g.name) as genres
+                GROUP_CONCAT(DISTINCT g.name) as genres,
+                CASE WHEN f.id IS NOT NULL THEN 1 ELSE 0 END as is_favorite,
+                CASE WHEN w.id IS NOT NULL THEN 1 ELSE 0 END as in_watchlist
             FROM media m
             LEFT JOIN ratings r ON m.id = r.media_id
             LEFT JOIN media_genres mg ON m.id = mg.media_id
             LEFT JOIN genres g ON mg.genre_id = g.id
-            WHERE m.type = ? AND LOWER(m.title) LIKE LOWER(?)
+            LEFT JOIN favorites f ON m.id = f.item_id 
+                AND f.user_id = ? 
+                AND f.item_type = 'media'
+            LEFT JOIN watchlist w ON m.id = w.media_id 
+                AND w.user_id = ?
+            WHERE m.type = ? AND (
+                LOWER(m.title) LIKE LOWER(?) OR
+                LOWER(m.plot) LIKE LOWER(?) OR
+                EXISTS (
+                    SELECT 1 FROM media_genres mg2
+                    JOIN genres g2 ON mg2.genre_id = g2.id
+                    WHERE mg2.media_id = m.id AND LOWER(g2.name) LIKE LOWER(?)
+                )
+            )
             GROUP BY m.id
         '''
         
-        params = [search_type, f'%{query}%']
+        # Base parameters including user_id for favorites and watchlist
+        params = [current_user.id, current_user.id, search_type, f'%{query}%', f'%{query}%', f'%{query}%']
 
+        # Add sorting
         if sort_by == 'rating':
-            query_sql += ' ORDER BY r.average_rating DESC NULLS LAST'
+            query_sql += ' ORDER BY r.average_rating DESC NULLS LAST, m.title'
         elif sort_by == 'year':
-            query_sql += ' ORDER BY m.year DESC'
+            query_sql += ' ORDER BY m.year DESC, m.title'
         elif sort_by == 'title':
             query_sql += ' ORDER BY m.title'
         else:  # relevance
@@ -231,11 +250,13 @@ def api_search():
                     CASE 
                         WHEN LOWER(m.title) = LOWER(?) THEN 1
                         WHEN LOWER(m.title) LIKE LOWER(?) THEN 2
-                        ELSE 3
+                        WHEN LOWER(m.plot) LIKE LOWER(?) THEN 3
+                        ELSE 4
                     END,
-                    r.average_rating DESC NULLS LAST
+                    r.average_rating DESC NULLS LAST,
+                    m.title
             '''
-            params.extend([query, f'{query}%'])
+            params.extend([query, f'{query}%', f'%{query}%'])
 
         query_sql += ' LIMIT 20'
         
@@ -252,7 +273,9 @@ def api_search():
                 'average_rating': float(row['average_rating']) if row['average_rating'] else None,
                 'num_votes': row['num_votes'],
                 'genres': row['genres'].split(',') if row['genres'] else [],
-                'poster_url': '/static/images/no-poster.png'  # Always use default poster
+                'poster_url': '/static/images/no-poster.png', 
+                'is_favorite': bool(row['is_favorite']),  
+                'in_watchlist': bool(row['in_watchlist']) 
             }
             processed_results.append(result_dict)
 
@@ -263,6 +286,16 @@ def api_search():
         return jsonify({'error': 'An error occurred during search'}), 500
     finally:
         conn.close()
+        
+@app.route('/api/check-favorite/<int:media_id>')
+@login_required
+def check_favorite(media_id):
+    is_favorite = db.session.query(Favorite).filter_by(
+        user_id=current_user.id,
+        item_id=media_id,
+        item_type='media'
+    ).first() is not None
+    return jsonify({'is_favorite': is_favorite})
 
 @app.template_filter('datetime')
 def format_datetime(value):

@@ -114,7 +114,7 @@
 
 <!-- Rating Modal -->
 <div class="modal fade" id="ratingModal" tabindex="-1" aria-labelledby="ratingModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="ratingModalLabel">Rate Movie</h5>
@@ -137,6 +137,32 @@
         </div>
     </div>
 </div>
+
+<style>
+    .card {
+    transition: all 0.3s ease;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 0.5rem;
+        justify-content: flex-end;
+        padding-top: 1rem;
+    }
+
+    .btn-icon:hover {
+        transform: scale(1.1);
+        background-color: var(--bs-gray-200);
+    }
+
+    .toggle-favorite.active i {
+        color: #dc3545;
+    }
+
+    .add-to-watchlist.active i {
+        color: #198754;
+    }
+</style>
 
 {% endblock %}
 

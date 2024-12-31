@@ -1,7 +1,6 @@
 $(document).ready(function() {
-    // Initialize variables for rating modal
-    let currentRatingMediaId = null;
-    const ratingModal = new bootstrap.Modal(document.getElementById('ratingModal'));
+    // Initialize tooltips
+    $('[data-bs-toggle="tooltip"]').tooltip();
 
     // Autocomplete initialization
     $("#searchInput").autocomplete({
@@ -43,9 +42,6 @@ $(document).ready(function() {
             .appendTo(ul);
     };
 
-    // Initialize tooltips
-    $('[data-bs-toggle="tooltip"]').tooltip();
-
     // Search functionality
     function performSearch() {
         const query = $("#searchInput").val().trim();
@@ -53,7 +49,6 @@ $(document).ready(function() {
 
         $("#loadingSpinner").show();
         $("#searchResults").hide();
-        $("#noResults").hide();
 
         $.ajax({
             url: "/api/search_query",
@@ -75,12 +70,10 @@ $(document).ready(function() {
         });
     }
 
-    // Event listeners
+    // Event listeners for search
     $("#searchButton").click(performSearch);
     $("#searchInput").keypress(function(e) {
-        if (e.which === 13) {
-            performSearch();
-        }
+        if (e.which === 13) performSearch();
     });
     $("#sortBy").change(performSearch);
     $("#searchType").change(function() {
@@ -88,8 +81,8 @@ $(document).ready(function() {
         performSearch();
     });
 
-    // Display search results
-    function displayResults(results) {
+    // Display results
+    async function displayResults(results) {
         const container = $("#searchResults");
         container.empty();
     
@@ -102,22 +95,30 @@ $(document).ready(function() {
             const rowDiv = $('<div class="row mb-4"></div>');
             container.append(rowDiv);
             
-            const rowCards = results.slice(i, i + 3);
-            rowCards.forEach(item => displayMediaCard(rowDiv, item));
+            // Process each item in the current row
+            const rowItems = results.slice(i, i + 3);
+            for (const item of rowItems) {
+                // Make sure is_favorite is properly set
+                if (typeof item.is_favorite !== 'boolean') {
+                    item.is_favorite = await checkFavoriteStatus(item.id);
+                }
+                displayMediaCard(rowDiv, item);
+            }
         }
-        
+    
+        // Reinitialize tooltips for new content
         $('[data-bs-toggle="tooltip"]').tooltip();
     }
-
+    
     // Media card display
     function displayMediaCard(container, item) {
-        const ratingDisplay = item.average_rating 
-            ? `${item.average_rating.toFixed(1)} (${item.num_votes} votes)`
-            : 'No ratings';
-        
         const genres = item.genres && item.genres.length 
             ? `<p class="genres mb-2">${item.genres.join(', ')}</p>` 
             : '';
+    
+        // Ensure boolean values for states
+        const isFavorite = Boolean(item.is_favorite);
+        const inWatchlist = Boolean(item.in_watchlist);
     
         container.append(`
             <div class="col-md-4">
@@ -136,12 +137,6 @@ $(document).ready(function() {
                             </div>
                         </div>
                         <div class="card-bottom mt-auto">
-                            <div class="rating-section">
-                                <div class="rating">
-                                    <i class="fas fa-star text-warning"></i>
-                                    <span class="rating-value">${ratingDisplay}</span>
-                                </div>
-                            </div>
                             <div class="action-buttons">
                                 <button class="btn btn-sm btn-icon add-to-history" 
                                         data-bs-toggle="tooltip" 
@@ -149,23 +144,19 @@ $(document).ready(function() {
                                         data-media-id="${item.id}">
                                     <i class="fas fa-history"></i>
                                 </button>
-                                <button class="btn btn-sm btn-icon toggle-favorite ${item.is_favorite ? 'active' : ''}" 
+                                <button class="btn btn-sm btn-icon toggle-favorite ${isFavorite ? 'active' : ''}" 
                                         data-bs-toggle="tooltip" 
-                                        title="${item.is_favorite ? 'Remove from Favorites' : 'Add to Favorites'}"
-                                        data-media-id="${item.id}">
-                                    <i class="fa${item.is_favorite ? 's' : 'r'} fa-heart"></i>
+                                        title="${isFavorite ? 'Remove from Favorites' : 'Add to Favorites'}"
+                                        data-media-id="${item.id}"
+                                        data-is-favorite="${isFavorite}">
+                                    <i class="fa${isFavorite ? 's' : 'r'} fa-heart"></i>
                                 </button>
-                                <button class="btn btn-sm btn-icon add-to-watchlist ${item.in_watchlist ? 'active' : ''}" 
+                                <button class="btn btn-sm btn-icon add-to-watchlist ${inWatchlist ? 'active' : ''}" 
                                         data-bs-toggle="tooltip" 
-                                        title="${item.in_watchlist ? 'Remove from Watchlist' : 'Add to Watchlist'}"
-                                        data-media-id="${item.id}">
+                                        title="${inWatchlist ? 'Remove from Watchlist' : 'Add to Watchlist'}"
+                                        data-media-id="${item.id}"
+                                        data-in-watchlist="${inWatchlist}">
                                     <i class="fas fa-list"></i>
-                                </button>
-                                <button class="btn btn-sm btn-icon rate-media" 
-                                        data-bs-toggle="tooltip" 
-                                        title="Rate"
-                                        data-media-id="${item.id}">
-                                    <i class="fas fa-star"></i>
                                 </button>
                             </div>
                         </div>
@@ -173,32 +164,18 @@ $(document).ready(function() {
                 </div>
             </div>
         `);
+    
+        // Initialize tooltips for the new card
+        container.find('[data-bs-toggle="tooltip"]').tooltip();
+    
+        // Add hover effect for the card
+        container.find('.card').hover(
+            function() { $(this).addClass('shadow-lg'); },
+            function() { $(this).removeClass('shadow-lg'); }
+        );
     }
 
     // Action button handlers
-    $(document).on('click', '.action-buttons button', function(e) {
-        e.preventDefault();
-        const mediaId = $(this).data('media-id');
-        const button = $(this);
-    
-        if (button.hasClass('add-to-history')) {
-            handleAddToHistory(mediaId);
-        } else if (button.hasClass('toggle-favorite')) {
-            handleToggleFavorite(button, mediaId);
-        } else if (button.hasClass('add-to-watchlist')) {
-            handleAddToWatchlist(button, mediaId);
-        } else if (button.hasClass('rate-media')) {
-            currentMediaId = mediaId;
-            // Get current rating if exists
-            const ratingDisplay = $(`.rating[data-media-id="${mediaId}"] .rating-value`).text();
-            const currentRating = ratingDisplay.match(/(\d+(\.\d+)?)/);
-            $('#ratingSlider').val(currentRating ? Math.round(parseFloat(currentRating[1])) : 5);
-            $('#currentRating').text($('#ratingSlider').val());
-            ratingModal.show();
-        }
-    });
-
-    // API handlers
     function handleAddToHistory(mediaId) {
         $.ajax({
             url: '/api/watch-history',
@@ -211,7 +188,11 @@ $(document).ready(function() {
     }
 
     function handleToggleFavorite(button, mediaId) {
-        const isFavorite = button.find('i').hasClass('fas');
+        const isFavorite = button.hasClass('active');
+        
+        // Optimistically update UI before the server response
+        updateFavoriteButton(button, !isFavorite);
+        
         $.ajax({
             url: '/api/favorites',
             method: isFavorite ? 'DELETE' : 'POST',
@@ -219,16 +200,77 @@ $(document).ready(function() {
             data: JSON.stringify({ 
                 item_id: mediaId,
                 item_type: 'media'
-            })
-        })
-        .done(function() {
-            button.find('i').toggleClass('far fas');
-            button.toggleClass('active');
-            button.attr('title', isFavorite ? 'Add to Favorites' : 'Remove from Favorites');
-            showToast(isFavorite ? 'Removed from favorites' : 'Added to favorites');
-        })
-        .fail(() => showToast('Error updating favorites', 'error'));
+            }),
+            success: function(response) {
+                showToast(isFavorite ? 'Removed from favorites' : 'Added to favorites');
+                
+                // Update all instances of the same media item on the page
+                $(`.toggle-favorite[data-media-id="${mediaId}"]`).each(function() {
+                    updateFavoriteButton($(this), !isFavorite);
+                });
+            },
+            error: function(xhr) {
+                // Revert the button state on error
+                updateFavoriteButton(button, isFavorite);
+                showToast('Error updating favorites', 'error');
+            }
+        });
     }
+    
+    // Helper function to update favorite button state
+    function updateFavoriteButton(button, isFavorite) {
+        // Toggle active class
+        button.toggleClass('active', isFavorite);
+        
+        // Update the icon
+        const icon = button.find('i');
+        icon.toggleClass('fas', isFavorite).toggleClass('far', !isFavorite);
+        
+        // Update tooltip
+        button.attr('title', isFavorite ? 'Remove from Favorites' : 'Add to Favorites');
+        
+        // Update data attribute
+        button.attr('data-is-favorite', isFavorite);
+        
+        // Refresh tooltip
+        const tooltip = bootstrap.Tooltip.getInstance(button);
+        if (tooltip) {
+            tooltip.dispose();
+        }
+        new bootstrap.Tooltip(button);
+    }
+    
+    // Event handler for favorite button
+    $(document).on('click', '.toggle-favorite', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const button = $(this);
+        const mediaId = button.data('media-id');
+        handleToggleFavorite(button, mediaId);
+    });
+    
+    // Add a function to check favorite status when loading results
+    function checkFavoriteStatus(mediaId) {
+        return new Promise((resolve) => {
+            $.ajax({
+                url: `/api/check-favorite/${mediaId}`,
+                method: 'GET',
+                success: function(response) {
+                    resolve(response.is_favorite);
+                },
+                error: function() {
+                    resolve(false);
+                }
+            });
+        });
+    }
+
+    // Event handler for favorite button
+    $(document).on('click', '.toggle-favorite', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        handleToggleFavorite($(this), $(this).data('media-id'));
+    });
 
     function handleAddToWatchlist(button, mediaId) {
         const inWatchlist = button.hasClass('active');
@@ -246,37 +288,20 @@ $(document).ready(function() {
         .fail(() => showToast('Error updating watchlist', 'error'));
     }
 
-    // Handle rating slider change
-    $('#ratingSlider').on('input', function() {
-        $('#currentRating').text(this.value);
+    // Button click handlers
+    $(document).on('click', '.add-to-history', function(e) {
+        e.preventDefault();
+        handleAddToHistory($(this).data('media-id'));
     });
 
-    // Handle rating submission
-    $('#submitRating').click(function() {
-        const rating = parseInt($('#ratingSlider').val());
-        
-        if (currentMediaId && rating >= 1 && rating <= 10) {
-            $.ajax({
-                url: '/api/update-rating',
-                method: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify({
-                    media_id: currentMediaId,
-                    rating: rating
-                }),
-                success: function(response) {
-                    $(`.rating[data-media-id="${currentMediaId}"] .rating-value`)
-                        .text(`${rating.toFixed(1)} (Your rating)`);
-                    
-                    ratingModal.hide();
-                    showToast('Rating updated successfully');
-                },
-                error: function(xhr) {
-                    const errorMsg = xhr.responseJSON?.error || 'Error updating rating';
-                    showToast(errorMsg, 'error');
-                }
-            });
-        }
+    $(document).on('click', '.toggle-favorite', function(e) {
+        e.preventDefault();
+        handleToggleFavorite($(this), $(this).data('media-id'));
+    });
+
+    $(document).on('click', '.add-to-watchlist', function(e) {
+        e.preventDefault();
+        handleAddToWatchlist($(this), $(this).data('media-id'));
     });
 
     // Toast notification
