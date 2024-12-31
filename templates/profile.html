@@ -24,50 +24,6 @@
 
     <!-- Tab Content -->
     <div class="tab-content" id="profileTabsContent">
-        <!-- Watch History Tab -->
-        <div class="tab-pane fade show" id="history" role="tabpanel">
-            <div class="table-responsive">
-                <table class="table" id="historyTable">
-                    <thead>
-                        <tr>
-                            <th>Title</th>
-                            <th>Year</th>
-                            <th>Type</th>
-                            <th>Watch Date</th>
-                            <th>Rating</th>
-                            <th>Favorite</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for item in watch_history %}
-                        <tr>
-                            <td>{{ item.title }}</td>
-                            <td>{{ item.year }}</td>
-                            <td>{{ item.type|title }}</td>
-                            <td>{{ item.watch_date|datetime if item.watch_date else 'N/A' }}</td>
-                            <td class="rating-cell" data-media-id="{{ item.id }}">
-                                {% if item.rating %}
-                                    <span class="text-warning rating-display">
-                                        {% for i in range(item.rating) %}★{% endfor %}
-                                        {% for i in range(10 - item.rating) %}☆{% endfor %}
-                                    </span>
-                                {% else %}
-                                    <span class="text-muted rating-display">Not rated</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <button class="btn btn-link favorite-btn p-0" 
-                                        data-media-id="{{ item.id }}" 
-                                        data-is-favorite="{{ item.is_favorite|int }}">
-                                    <i class="{% if item.is_favorite %}fas{% else %}far{% endif %} fa-heart text-danger"></i>
-                                </button>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
 
         <!-- Watchlist Tab -->
         <div class="tab-pane fade show active" id="watchlist" role="tabpanel">
@@ -116,9 +72,55 @@
                 </table>
             </div>
         </div>
+
+
+
+        <!-- Watch History Tab -->
+        <div class="tab-pane fade active" id="history" role="tabpanel">
+            <div class="table-responsive">
+                <table class="table" id="historyTable">
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>Year</th>
+                            <th>Type</th>
+                            <th>Watch Date</th>
+                            <th>Rating</th>
+                            <th>Favorite</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in watch_history %}
+                        <tr>
+                            <td>{{ item.title }}</td>
+                            <td>{{ item.year }}</td>
+                            <td>{{ item.type|title }}</td>
+                            <td>{{ item.watch_date|datetime if item.watch_date else 'N/A' }}</td>
+                            <td class="rating-cell" data-media-id="{{ item.id }}">
+                                {% if item.rating %}
+                                    <span class="text-warning rating-display">
+                                        {% for i in range(item.rating) %}★{% endfor %}
+                                        {% for i in range(10 - item.rating) %}☆{% endfor %}
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted rating-display">Not rated</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <button class="btn btn-link favorite-btn p-0" 
+                                        data-media-id="{{ item.id }}" 
+                                        data-is-favorite="{{ item.is_favorite|int }}">
+                                    <i class="{% if item.is_favorite %}fas{% else %}far{% endif %} fa-heart text-danger"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 </div>
-
 <!-- Rating Modal -->
 <div class="modal fade" id="ratingModal" tabindex="-1">
     <div class="modal-dialog">
@@ -146,6 +148,11 @@
 </div>
 
 <style>
+    .table {
+        width: 150%;
+        margin: 0 auto; /* Center the table horizontally */
+    }
+
     .table td {
         vertical-align: middle;
     }

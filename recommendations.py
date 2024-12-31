@@ -12,18 +12,25 @@ class MovieRecommender:
         return conn
 
     def get_recommendations(self, user_id, limit=50):
-        conn = self.db_connection()
+        conn = self.get_db_connection()  # Fixed method name
         try:
             # Get user settings
             settings = conn.execute('''
                 SELECT min_rating, year_from, year_to, 
-                       include_watch_history, include_ratings, include_favorites
+                    include_watch_history, include_ratings, include_favorites
                 FROM user_settings 
                 WHERE user_id = ?
             ''', [user_id]).fetchone()
             
             if not settings:
-                return []
+                settings = {
+                    'min_rating': 6.0,
+                    'year_from': 1900,
+                    'year_to': 2024,
+                    'include_watch_history': True,
+                    'include_ratings': True,
+                    'include_favorites': True
+                }
 
             # Get user genre preferences
             genre_preferences = conn.execute('''
@@ -34,36 +41,45 @@ class MovieRecommender:
             
             genre_weights = {row['genre_id']: row['weight'] for row in genre_preferences}
             
-            # Base query to get eligible movies
+            # Base query to get eligible movies - FIXED to properly handle ratings and year range
             base_query = '''
-                SELECT DISTINCT m.*, r.average_rating, GROUP_CONCAT(mg.genre_id) as genre_ids
+                SELECT DISTINCT 
+                    m.*,
+                    r.average_rating,
+                    r.num_votes,
+                    GROUP_CONCAT(mg.genre_id) as genre_ids
                 FROM media m
                 JOIN media_genres mg ON m.id = mg.media_id
-                JOIN ratings r ON m.id = r.media_id
-                WHERE r.average_rating >= ?
-                AND m.year BETWEEN ? AND ?
-                AND m.id NOT IN (
-                    SELECT media_id FROM watch_history WHERE user_id = ?
-                )
+                LEFT JOIN ratings r ON m.id = r.media_id  -- Changed to LEFT JOIN to not exclude unrated movies
+                WHERE 1=1
+                    AND (r.average_rating >= ? OR r.average_rating IS NULL)
+                    AND m.year BETWEEN ? AND ?
+                    AND m.id NOT IN (
+                        SELECT media_id FROM watch_history WHERE user_id = ?
+                    )
                 GROUP BY m.id
-                HAVING MAX(CASE WHEN mg.genre_id IN ({}) THEN 1 ELSE 0 END) = 1
-            '''.format(','.join('?' * len(genre_weights)))
+                HAVING COUNT(DISTINCT CASE WHEN mg.genre_id IN ({}) THEN mg.genre_id ELSE NULL END) > 0
+            '''.format(','.join('?' * len(genre_weights)) if genre_weights else '0')
             
             params = [
                 settings['min_rating'],
                 settings['year_from'],
                 settings['year_to'],
                 user_id
-            ] + list(genre_weights.keys())
+            ]
+            
+            if genre_weights:
+                params.extend(list(genre_weights.keys()))
 
             movies = conn.execute(base_query, params).fetchall()
             
             # Calculate scores for each movie
             scored_movies = []
             for movie in movies:
+                movie_dict = dict(movie)
                 score = self.calculate_movie_score(
                     conn,
-                    movie,
+                    movie_dict,
                     user_id,
                     genre_weights,
                     settings['include_watch_history'],
@@ -72,7 +88,7 @@ class MovieRecommender:
                 
                 if score > 0:
                     scored_movies.append({
-                        'movie': dict(movie),
+                        'movie': movie_dict,
                         'score': score
                     })
 
@@ -87,31 +103,41 @@ class MovieRecommender:
 
         finally:
             conn.close()
-
+        
+        
     def calculate_movie_score(self, conn, movie, user_id, genre_weights, use_history, use_favorites):
         score = 0
-        movie_genres = set(map(int, movie['genre_ids'].split(',')))
+        movie_genres = set(map(int, str(movie['genre_ids']).split(','))) if movie['genre_ids'] else set()
         
-        # Base score from genre preferences
+        # Base score from genre preferences (30% of total score)
+        genre_score = 0
         for genre_id in movie_genres:
             if genre_id in genre_weights:
-                score += genre_weights[genre_id]
+                genre_score += genre_weights[genre_id]
 
         # Normalize genre score
         if len(movie_genres) > 0:
-            score = score / len(movie_genres)
+            genre_score = genre_score / len(movie_genres)
+        score += genre_score * 0.3
 
-        # Rating contribution (0-1 scale)
-        rating_score = (movie['average_rating'] - 5) / 5  # Normalize 5-10 rating to 0-1
-        score += rating_score
+        # Rating contribution (40% of total score)
+        if movie['average_rating'] is not None:
+            rating_score = (float(movie['average_rating']) - 5) / 5  # Normalize 5-10 rating to 0-1
+            # Consider number of votes for rating reliability
+            if movie['num_votes']:
+                vote_weight = min(1.0, math.log10(float(movie['num_votes']) + 1) / 4)
+                rating_score *= vote_weight
+            score += rating_score * 0.4
 
+        # Historical preferences (15% of total score)
         if use_history:
             history_score = self.calculate_history_similarity(conn, user_id, movie_genres)
-            score += history_score * 0.5  # Weight history less than direct preferences
+            score += history_score * 0.15
 
+        # Favorites similarity (15% of total score)
         if use_favorites:
             favorites_score = self.calculate_favorites_similarity(conn, user_id, movie_genres)
-            score += favorites_score  # Weight favorites more heavily
+            score += favorites_score * 0.15
 
         return score
 
@@ -173,9 +199,11 @@ class MovieRecommender:
         conn = self.get_db_connection()
         try:
             query = '''
-                SELECT m.*, r.score, r.rank
+                SELECT m.*, r.score, r.rank, 
+                    rt.average_rating, rt.num_votes
                 FROM user_recommendations r
                 JOIN media m ON r.media_id = m.id
+                LEFT JOIN ratings rt ON m.id = rt.media_id
                 WHERE r.user_id = ?
                 ORDER BY r.rank
             '''

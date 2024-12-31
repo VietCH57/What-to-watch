@@ -681,58 +681,22 @@ def recommendations():
     sort_by = request.args.get('sort', 'relevance')
     refresh = request.args.get('refresh', 'false').lower() == 'true'
     
-    # If refresh is requested, generate new recommendations
     if refresh:
         recommender.refresh_recommendations(current_user.id)
     
-    # Get stored recommendations
     recommendations = recommender.get_stored_recommendations(current_user.id)
     
-    # Convert Row objects to dictionaries
+    # Convert Row objects to dictionaries and ensure numeric values are properly handled
     recommendations_list = []
     for rec in recommendations:
-        rec_dict = dict(rec)  # Convert Row to dictionary
-        
-        # Get additional data if needed
-        conn = get_db_connection()
-        try:
-            # Get genres
-            genres = conn.execute('''
-                SELECT g.name 
-                FROM media_genres mg 
-                JOIN genres g ON mg.genre_id = g.id 
-                WHERE mg.media_id = ?
-            ''', [rec_dict['id']]).fetchall()
-            rec_dict['genres'] = [g['name'] for g in genres]
-            
-            # Check if in favorites
-            favorite = conn.execute('''
-                SELECT 1 FROM favorites 
-                WHERE user_id = ? AND item_id = ? AND item_type = 'media'
-            ''', [current_user.id, rec_dict['id']]).fetchone()
-            rec_dict['is_favorite'] = favorite is not None
-            
-            # Check if in watchlist
-            watchlist = conn.execute('''
-                SELECT 1 FROM watchlist 
-                WHERE user_id = ? AND media_id = ?
-            ''', [current_user.id, rec_dict['id']]).fetchone()
-            rec_dict['in_watchlist'] = watchlist is not None
-            
-        finally:
-            conn.close()
-        
+        rec_dict = dict(rec)
+        # Explicitly convert numeric values
+        if rec_dict.get('average_rating') is not None:
+            rec_dict['average_rating'] = float(rec_dict['average_rating'])
+        if rec_dict.get('num_votes') is not None:
+            rec_dict['num_votes'] = int(rec_dict['num_votes'])
         recommendations_list.append(rec_dict)
     
-    # Apply sorting
-    if sort_by == 'rating':
-        recommendations_list.sort(key=lambda x: x.get('average_rating', 0) or 0, reverse=True)
-    elif sort_by == 'year':
-        recommendations_list.sort(key=lambda x: x.get('year', 0) or 0, reverse=True)
-    elif sort_by == 'title':
-        recommendations_list.sort(key=lambda x: x.get('title', '').lower())
-    
-    # Pagination
     items_per_page = 12
     total_items = len(recommendations_list)
     total_pages = math.ceil(total_items / items_per_page)

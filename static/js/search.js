@@ -87,7 +87,7 @@ $(document).ready(function() {
         container.empty();
     
         if (!results || !results.length) {
-            container.html('<div class="col-12 text-center mt-4">No recommendations found</div>');
+            container.html('<div class="col-12 text-center mt-4">No media found</div>');
             return;
         }
     
