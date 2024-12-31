@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 import sqlite3
@@ -6,7 +6,6 @@ import os
 import math
 from sqlite3 import Error
 
-from helpers.poster_scraper import PosterScraper
 from recommendations import MovieRecommender
 
 app = Flask(__name__)
@@ -23,8 +22,6 @@ DB_PATH = r"D:\Programming\What To Watch\wtwData\movies.db"
 # Initialize the recommender
 recommender = MovieRecommender(DB_PATH)
 
-# Initialize PosterScraper
-poster_scraper = PosterScraper()
 
 def get_db_connection():
     try:
@@ -206,7 +203,6 @@ def api_search():
 
     conn = get_db_connection()
     try:
-        # Your existing SQL query remains the same
         query_sql = '''
             SELECT m.*, 
                 r.average_rating,
@@ -244,10 +240,7 @@ def api_search():
         
         results = conn.execute(query_sql, params).fetchall()
         
-        # Process results and fetch posters if needed
         processed_results = []
-        update_queries = []
-        
         for row in results:
             result_dict = {
                 'id': row['id'],
@@ -257,39 +250,10 @@ def api_search():
                 'plot': row['plot'],
                 'average_rating': float(row['average_rating']) if row['average_rating'] else None,
                 'num_votes': row['num_votes'],
-                'genres': row['genres'].split(',') if row['genres'] else []
+                'genres': row['genres'].split(',') if row['genres'] else [],
+                'poster_url': '/static/images/no-poster.png'  # Always use default poster
             }
-
-            # Check if we need to fetch a poster
-            if not row['poster_url']:
-                poster_path = poster_scraper.get_poster_url(
-                    title=row['title'],
-                    year=row['year']
-                )
-                
-                if poster_path:
-                    # Convert local path to URL
-                    relative_path = os.path.basename(poster_path)
-                    result_dict['poster_url'] = f"/images/{relative_path}"
-                    
-                    # Add to update queries
-                    update_queries.append((result_dict['poster_url'], row['id']))
-                else:
-                    result_dict['poster_url'] = '/static/images/no-poster.png'
-            else:
-                result_dict['poster_url'] = row['poster_url']
-            
             processed_results.append(result_dict)
-
-        # Update the database with new poster URLs
-        if update_queries:
-            try:
-                update_sql = 'UPDATE media SET poster_url = ? WHERE id = ?'
-                conn.executemany(update_sql, update_queries)
-                conn.commit()
-            except Exception as e:
-                print(f"Error updating poster URLs: {str(e)}")
-                conn.rollback()
 
         return jsonify(processed_results)
 
@@ -299,14 +263,7 @@ def api_search():
     finally:
         conn.close()
 
-# Add route to serve images
-@app.route('/images/<filename>')
-@login_required
-def serve_image(filename):
-    image_path = os.path.join("D:\\Programming\\What To Watch\\wtwData\\images", filename)
-    if os.path.exists(image_path):
-        return send_file(image_path, mimetype='image/jpeg')
-    return send_file('static/images/no-poster.png', mimetype='image/png')
+
 
         
 @app.route("/api/favorites", methods=['POST', 'DELETE'])

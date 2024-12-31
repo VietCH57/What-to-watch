@@ -45,6 +45,35 @@
     transition: all 0.3s ease;
 }
 
+.nav-button {
+    padding: 8px 20px;
+    border-radius: 20px;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    margin: 0 8px;
+    font-size: 1rem;
+    font-weight: 500;
+    border: none;
+    min-width: 100px;
+    text-align: center;
+    display: inline-block;
+}
+
+.search-button {
+    background-color: #007bff;
+    color: white !important;
+    height: flex;
+    box-shadow: 0 2px 4px rgba(0, 123, 255, 0.2);
+}
+
+.search-button:hover {
+    background-color: #0056b3;
+    color: white !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
+}
+
+
 /* Auth Button Styles */
 .navbar a[href*="login"] {
     border: 2px solid var(--accent-color);
@@ -86,7 +115,7 @@
 /* Dark Mode Toggle Button */
 .theme-toggle {
     aspect-ratio: 1; 
-    height: 41px; 
+    height: 40px; 
     padding: 0;
     border: 2px solid var(--accent-color);
     border-radius: 5px;

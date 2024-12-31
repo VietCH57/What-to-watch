@@ -33,14 +33,37 @@ $(document).ready(function() {
     }).autocomplete("instance")._renderItem = function(ul, item) {
         const searchTerm = this.term.toLowerCase();
         const title = item.value;
+        const isDarkMode = document.documentElement.getAttribute('data-theme') === 'dark';
+        
+        // Add a class to the ul element for dark mode styling
+        $(ul).addClass('ui-autocomplete-custom');
+        if (isDarkMode) {
+            $(ul).addClass('dark-mode');
+        }
+
         const highlightedTitle = title.replace(
-            new RegExp('^(' + searchTerm + ')', 'i'),
-            '<strong>$1</strong>'
+            new RegExp('(' + searchTerm + ')', 'gi'),
+            `<strong style="color: ${isDarkMode ? '#007bff' : '#0056b3'}">$1</strong>`
         );
+
         return $("<li>")
             .append(`<div>${highlightedTitle} (${item.label.split('(')[1]}`)
             .appendTo(ul);
     };
+
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.attributeName === "data-theme") {
+                const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+                $('.ui-autocomplete').toggleClass('dark-mode', isDark);
+            }
+        });
+    });
+
+    observer.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['data-theme']
+    });
 
     // Initialize tooltips
     $('[data-bs-toggle="tooltip"]').tooltip();

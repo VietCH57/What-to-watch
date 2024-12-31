@@ -157,3 +157,47 @@ body * {
 .no-transition * {
     transition: none !important;
 }
+
+/* jQuery UI Autocomplete Dark Mode Override */
+[data-theme="dark"] .ui-widget-content,
+[data-theme="dark"] .ui-widget.ui-widget-content,
+[data-theme="dark"] .ui-autocomplete {
+    background: var(--card-background) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme="dark"] .ui-menu-item,
+[data-theme="dark"] .ui-menu-item-wrapper {
+    background: var(--card-background) !important;
+    color: var(--text-color) !important;
+}
+
+[data-theme="dark"] .ui-menu-item-wrapper.ui-state-active {
+    background: var(--accent-color) !important;
+    color: var(--text-color) !important;
+}
+
+/* Action Button Icons Dark Mode Override */
+[data-theme="dark"] .action-buttons .btn-icon i.fas,
+[data-theme="dark"] .action-buttons .btn-icon i.far {
+    color: var(--text-color) !important;
+}
+
+[data-theme="dark"] .action-buttons .btn-icon:hover i.fas,
+[data-theme="dark"] .action-buttons .btn-icon:hover i.far {
+    color: var(--accent-color) !important;
+}
+
+[data-theme="dark"] .action-buttons .btn-icon.active i.fas,
+[data-theme="dark"] .action-buttons .btn-icon.active i.far {
+    color: var(--text-color) !important;
+}
+
+[data-theme="dark"] .action-buttons .btn-icon {
+    background-color: var(--card-background) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme="dark"] .action-buttons .btn-icon:hover {
+    background-color: var(--filter-bar-bg) !important;
+}
